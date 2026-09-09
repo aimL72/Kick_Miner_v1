@@ -13,6 +13,7 @@ import time
 
 from loguru import logger
 
+from kickminer.analytics import Analytics
 from kickminer.config import ConfigError, load_config
 from kickminer.i18n import load_language, t
 from kickminer.logging_setup import setup_logging
@@ -21,9 +22,17 @@ from kickminer.manager import AccountManager
 _RESTART_DELAY = 5
 
 
-async def _run_once(cfg) -> None:
-    manager = AccountManager(cfg)
+async def _run_once(cfg, analytics: Analytics) -> None:
+    manager = AccountManager(cfg, analytics=analytics)
     stop = asyncio.Event()
+
+    if cfg.web.enabled:
+        try:
+            from kickminer.web import start_dashboard
+
+            start_dashboard(manager, analytics, cfg.web.port)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(f"Web dashboard failed to start: {exc}")
 
     loop = asyncio.get_running_loop()
     for sig in (getattr(signal, "SIGINT", None), getattr(signal, "SIGTERM", None)):
@@ -67,20 +76,26 @@ def main() -> int:
     logger.info(t("language_set", lang=load_language(cfg.language)))
     logger.info(t("app_starting"))
 
-    while True:
-        try:
-            asyncio.run(_run_once(cfg))
-        except KeyboardInterrupt:
-            logger.info(t("app_stopped_by_user"))
-            return 0
-        except Exception as exc:  # noqa: BLE001
-            logger.exception(t("app_fatal", error=str(exc)))
+    analytics = Analytics()
+    try:
+        while True:
+            try:
+                asyncio.run(_run_once(cfg, analytics))
+            except KeyboardInterrupt:
+                logger.info(t("app_stopped_by_user"))
+                return 0
+            except Exception as exc:  # noqa: BLE001
+                logger.exception(t("app_fatal", error=str(exc)))
 
-        logger.warning(t("app_restarting", seconds=_RESTART_DELAY, reason="crash"))
-        try:
-            time.sleep(_RESTART_DELAY)
-        except KeyboardInterrupt:
-            return 0
+            logger.warning(
+                t("app_restarting", seconds=_RESTART_DELAY, reason="crash")
+            )
+            try:
+                time.sleep(_RESTART_DELAY)
+            except KeyboardInterrupt:
+                return 0
+    finally:
+        analytics.close()
 
 
 if __name__ == "__main__":

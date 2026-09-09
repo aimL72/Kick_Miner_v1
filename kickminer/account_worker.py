@@ -48,6 +48,7 @@ class AccountWorker:
         stagger_max: float = 8.0,
         on_points_gain=None,
         on_status_change=None,
+        analytics=None,
     ) -> None:
         self.cfg = cfg
         self.check_interval = check_interval
@@ -55,6 +56,7 @@ class AccountWorker:
         self.stagger_max = stagger_max
         self._on_points_gain = on_points_gain
         self._on_status_change = on_status_change
+        self._analytics = analytics
 
         self.state = AccountState(
             alias=cfg.alias,
@@ -191,6 +193,7 @@ class AccountWorker:
             balance = await asyncio.to_thread(self._api.get_points, name)
             if balance is not None:
                 st.points = balance
+                self._record_points(name, balance)
             st.points_start = st.points
 
             async def _on_closed(streamer: str = name) -> None:
@@ -262,6 +265,7 @@ class AccountWorker:
                 old = st.points
                 st.points = amount
                 st.last_points_update = datetime.now(timezone.utc)
+                self._record_points(name, amount)
                 if amount > old:
                     gain = amount - old
                     logger.success(
@@ -281,6 +285,10 @@ class AccountWorker:
             logger.warning(f"[{self.cfg.alias}] points loop {name}: {exc}")
 
     # ------------------------------------------------------------------ #
+
+    def _record_points(self, name: str, balance: int) -> None:
+        if self._analytics is not None:
+            self._analytics.record(self.cfg.alias, name, balance)
 
     def _emit_status(self, name: str, action: str) -> None:
         if self._on_status_change is not None:

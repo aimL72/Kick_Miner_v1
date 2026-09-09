@@ -14,8 +14,16 @@ _ACCOUNT_START_GAP = (5.0, 15.0)
 
 
 class AccountManager:
-    def __init__(self, config: Config, *, on_points_gain=None, on_status_change=None):
+    def __init__(
+        self,
+        config: Config,
+        *,
+        on_points_gain=None,
+        on_status_change=None,
+        analytics=None,
+    ):
         self.config = config
+        self.analytics = analytics
         self.workers: list[AccountWorker] = [
             AccountWorker(
                 acc,
@@ -24,6 +32,7 @@ class AccountManager:
                 stagger_max=config.stagger_max,
                 on_points_gain=on_points_gain,
                 on_status_change=on_status_change,
+                analytics=analytics,
             )
             for acc in config.accounts
         ]

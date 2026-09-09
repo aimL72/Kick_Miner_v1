@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kick Miner</title>
+<style>
+  :root{
+    --green:#53fc18; --green-dim:rgba(83,252,24,.13); --green-border:rgba(83,252,24,.3);
+    --bg:#0b0e11; --card:#191c21; --card2:#1e2228; --head:#12151a; --border:#2a2e35;
+    --fg:#efeff1; --fg2:#adadb8; --muted:#7a7a85; --red:#f04747; --orange:#faa61a;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Inter','Segoe UI',-apple-system,sans-serif;background:var(--bg);color:var(--fg);min-height:100vh}
+  .wrap{max-width:1200px;margin:0 auto;padding:0 20px 40px}
+  header{text-align:center;padding:30px 0 20px}
+  header h1{font-size:32px;font-weight:800;letter-spacing:2px}
+  header h1 .k{color:var(--green)}
+  header .sub{color:var(--muted);font-size:12px;letter-spacing:1px;text-transform:uppercase;margin-top:4px}
+  .bar{display:flex;justify-content:center;gap:28px;flex-wrap:wrap;background:var(--card);
+       border:1px solid var(--border);border-radius:12px;padding:16px 22px;margin-bottom:22px}
+  .bar .item{text-align:center;min-width:70px}
+  .bar .val{font-size:22px;font-weight:700;color:var(--green)}
+  .bar .lab{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+  .panel{background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:20px;overflow:hidden}
+  .panel > h2{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--fg2);
+              padding:14px 18px;background:var(--head);border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .panel > h2 .alias{color:var(--green)}
+  .panel > h2 .meta{margin-left:auto;font-weight:500;color:var(--fg2);font-size:12px;text-transform:none;letter-spacing:0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;padding:16px}
+  .s{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:13px 15px;position:relative;overflow:hidden}
+  .s::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--border)}
+  .s.watching::before{background:var(--green)}
+  .s.online::before{background:var(--orange)}
+  .s .top{display:flex;align-items:center;gap:7px;margin-bottom:9px}
+  .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:#555}
+  .s.watching .dot{background:var(--green);box-shadow:0 0 8px rgba(83,252,24,.5);animation:p 2s infinite}
+  .s.online .dot{background:var(--orange)}
+  @keyframes p{0%,100%{opacity:1}50%{opacity:.4}}
+  .s .nm{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .s .nm a{color:var(--fg);text-decoration:none}
+  .s .nm a:hover{color:var(--green)}
+  .s .pr{font-size:10px;background:#2a2e35;color:var(--muted);padding:1px 6px;border-radius:4px;font-weight:600}
+  .s .err{font-size:10px;background:rgba(240,71,71,.15);color:var(--red);padding:1px 6px;border-radius:4px}
+  .s .bot{display:flex;justify-content:space-between;align-items:baseline}
+  .s .pts{font-size:18px;font-weight:700;color:var(--green)}
+  .s .gain{font-size:11px;color:var(--fg2)}
+  .s .st{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
+  .s.watching .st{color:var(--green)}
+  .s.online .st{color:var(--orange)}
+  .chart-head{display:flex;gap:10px;align-items:center;padding:14px 18px;flex-wrap:wrap}
+  select{background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:13px}
+  .chart-box{padding:0 12px 16px}
+  svg{display:block;width:100%;height:260px}
+  .axis{stroke:var(--border);stroke-width:1}
+  .line{fill:none;stroke:var(--green);stroke-width:2}
+  .area{fill:var(--green-dim)}
+  .tick{fill:var(--muted);font-size:10px}
+  .empty{color:var(--muted);text-align:center;padding:40px 20px;font-size:14px}
+  footer{text-align:center;color:var(--muted);font-size:12px;padding-top:8px}
+  .dotlive{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);animation:p 2s infinite;margin-right:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="k">KICK</span> MINER</h1>
+    <div class="sub">Channel Points Farmer</div>
+  </header>
+
+  <div class="bar" id="bar"></div>
+
+  <div class="panel">
+    <h2>Points history</h2>
+    <div class="chart-head">
+      <select id="pick"></select>
+      <select id="range">
+        <option value="6">6 h</option>
+        <option value="24" selected>24 h</option>
+        <option value="72">3 d</option>
+        <option value="168">7 d</option>
+      </select>
+    </div>
+    <div class="chart-box" id="chart"><div class="empty">No data yet.</div></div>
+  </div>
+
+  <div id="accounts"></div>
+
+  <footer><span class="dotlive"></span>Auto-refresh 5 s &middot; last update <span id="upd">--:--:--</span></footer>
+</div>
+
+<script>
+const fmt = n => (n||0).toLocaleString();
+const el = (t,c,h) => { const e=document.createElement(t); if(c)e.className=c; if(h!=null)e.innerHTML=h; return e; };
+
+function renderBar(d){
+  const bar = document.getElementById('bar');
+  let watching=0, online=0, accounts=(d.accounts||[]).length;
+  for(const a of d.accounts||[]){
+    watching += a.active_count||0;
+    online += (a.active_streamers||[]).length;
+    for(const s of Object.values(a.streamers||{})) if(s.online && !s.watching) online++;
+  }
+  const items = [
+    ['<span class="dotlive"></span>ACTIVE','status'],
+    [accounts,'accounts'],
+    [watching,'watching'],
+    [online,'online'],
+    [fmt(d.grand_total),'total points'],
+    ['+'+fmt(d.session_gain),'this session'],
+  ];
+  bar.innerHTML='';
+  for(const [v,l] of items){
+    const it = el('div','item');
+    it.appendChild(el('div','val',v));
+    it.appendChild(el('div','lab',l));
+    bar.appendChild(it);
+  }
+}
+
+function renderAccounts(d){
+  const box = document.getElementById('accounts');
+  box.innerHTML='';
+  for(const a of d.accounts||[]){
+    const p = el('div','panel');
+    const order = a.streamer_order || Object.keys(a.streamers||{});
+    const up = a.uptime_seconds||0;
+    const hh = Math.floor(up/3600), mm = Math.floor(up%3600/60);
+    p.appendChild(el('h2',null,
+      `<span class="alias">${a.alias}</span>`+
+      `<span class="meta">${a.proxy?'proxy':'direct'} &middot; ${a.active_count}/${a.max_concurrent} watching `+
+      `&middot; up ${hh}h ${mm}m &middot; ${fmt(a.total_points)} pts</span>`));
+    const g = el('div','grid');
+    for(const name of order){
+      const s = (a.streamers||{})[name] || {};
+      let cls='s', st='offline';
+      if(s.watching){cls+=' watching'; st='watching';}
+      else if(s.online){cls+=' online'; st='queued';}
+      const card = el('div',cls);
+      card.appendChild(el('div','top',
+        `<span class="dot"></span>`+
+        `<span class="nm"><a href="https://kick.com/${name}" target="_blank" rel="noopener">${name}</a></span>`+
+        `<span class="pr">#${s.priority??'?'}</span>`+
+        (s.errors>0?`<span class="err">${s.errors}</span>`:'')));
+      card.appendChild(el('div','bot',
+        `<span class="pts">${fmt(s.points)} <span class="gain">(+${fmt(s.points_gained)})</span></span>`+
+        `<span class="st">${st}</span>`));
+      g.appendChild(card);
+    }
+    p.appendChild(g);
+    box.appendChild(p);
+  }
+}
+
+let picked = null;
+function syncPicker(list){
+  const pick = document.getElementById('pick');
+  const cur = pick.value;
+  if(JSON.stringify([...pick.options].map(o=>o.value)) === JSON.stringify(list)) return;
+  pick.innerHTML='';
+  for(const s of list){ const o=el('option'); o.value=s; o.textContent=s; pick.appendChild(o); }
+  if(list.includes(cur)) pick.value=cur;
+  if(!picked && list.length) picked=pick.value;
+}
+
+function drawChart(data){
+  const box = document.getElementById('chart');
+  const pts = data.points||[];
+  if(pts.length < 2){ box.innerHTML='<div class="empty">Not enough data yet - come back in a few minutes.</div>'; return; }
+  const W=1000, H=260, padL=54, padR=12, padT=14, padB=24;
+  const xs = pts.map(p=>p.ts), ys = pts.map(p=>p.balance);
+  const x0=Math.min(...xs), x1=Math.max(...xs);
+  let y0=Math.min(...ys), y1=Math.max(...ys);
+  if(y0===y1){ y0-=1; y1+=1; }
+  const sx = t => padL + (t-x0)/(x1-x0)*(W-padL-padR);
+  const sy = v => padT + (1-(v-y0)/(y1-y0))*(H-padT-padB);
+  const line = pts.map((p,i)=>(i?'L':'M')+sx(p.ts).toFixed(1)+' '+sy(p.balance).toFixed(1)).join(' ');
+  const area = line + ` L ${sx(x1).toFixed(1)} ${sy(y0).toFixed(1)} L ${sx(x0).toFixed(1)} ${sy(y0).toFixed(1)} Z`;
+  const tf = t => { const d=new Date(t*1000); return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0'); };
+  const yTicks=[y0,(y0+y1)/2,y1].map(v=>`<text class="tick" x="${padL-8}" y="${(sy(v)+3).toFixed(1)}" text-anchor="end">${fmt(Math.round(v))}</text>`).join('');
+  const xTicks=[x0,(x0+x1)/2,x1].map(t=>`<text class="tick" x="${sx(t).toFixed(1)}" y="${H-6}" text-anchor="middle">${tf(t)}</text>`).join('');
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <line class="axis" x1="${padL}" y1="${padT}" x2="${padL}" y2="${H-padB}"/>
+    <line class="axis" x1="${padL}" y1="${H-padB}" x2="${W-padR}" y2="${H-padB}"/>
+    <path class="area" d="${area}"/><path class="line" d="${line}"/>
+    ${yTicks}${xTicks}
+  </svg>
+  <div style="text-align:center;color:var(--fg2);font-size:12px;margin-top:6px">
+    ${data.streamer} &middot; ${fmt(ys[0])} &rarr; ${fmt(ys[ys.length-1])} pts (+${fmt(ys[ys.length-1]-ys[0])})</div>`;
+}
+
+async function refreshChart(){
+  if(!picked) return;
+  const hours = document.getElementById('range').value;
+  try{
+    const r = await fetch(`/api/history?streamer=${encodeURIComponent(picked)}&hours=${hours}`);
+    drawChart(await r.json());
+  }catch(e){}
+}
+
+async function tick(){
+  try{
+    const d = await (await fetch('/api/data')).json();
+    renderBar(d); renderAccounts(d); syncPicker(d.history_streamers||[]);
+    document.getElementById('upd').textContent = new Date().toLocaleTimeString();
+    refreshChart();
+  }catch(e){}
+}
+
+document.getElementById('pick').addEventListener('change', e=>{ picked=e.target.value; refreshChart(); });
+document.getElementById('range').addEventListener('change', refreshChart);
+tick();
+setInterval(tick, 5000);
+</script>
+</body>
+</html>
