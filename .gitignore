@@ -1,0 +1,32 @@
+# Virtuelle Umgebungen
+venv/
+env/
+.venv/
+.env
+
+# Python-Cache & Builds
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+build/
+dist/
+*.egg-info/
+
+# Konfiguration & Geheimnisse  (NIEMALS committen)
+config.json
+!config.example.json
+
+# Logs & Datenbanken
+logs/
+*.log
+data/
+*.sqlite
+*.sqlite3
+*.db
+
+# IDE & System
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

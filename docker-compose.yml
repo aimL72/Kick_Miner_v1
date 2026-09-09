@@ -1,0 +1,16 @@
+services:
+  kick-miner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: kick-channel-points-miner
+    container_name: kick-miner
+    restart: unless-stopped
+    volumes:
+      - ${CONFIG_FILE:-./config.json}:/app/config.json:ro
+      - ./logs:/app/logs
+      - ./data:/app/data
+    ports:
+      - "5000:5000"
+    environment:
+      - PYTHONUNBUFFERED=1

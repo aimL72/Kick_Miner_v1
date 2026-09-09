@@ -1,0 +1,11 @@
+.git
+.venv
+venv
+__pycache__
+*.pyc
+logs
+data
+config.json
+tests
+*.md
+!README.md

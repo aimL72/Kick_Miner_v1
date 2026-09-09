@@ -1,0 +1,48 @@
+{
+  "Language": "en",
+  "Debug": false,
+
+  "WebDashboard": {
+    "enabled": true,
+    "port": 5000
+  },
+
+  "Discord": {
+    "enabled": false,
+    "webhook_url": "https://discord.com/api/webhooks/XXXX/YYYY",
+    "username": "KickMiner",
+    "avatar_url": "",
+    "notify_points": true,
+    "notify_status_change": true,
+    "notify_errors": true,
+    "notify_startup": true,
+    "min_points_gain": 10
+  },
+
+  "Telegram": {
+    "enabled": false,
+    "bot_token": "YOUR_TELEGRAM_BOT_TOKEN",
+    "chat_id": "YOUR_TELEGRAM_USER_ID",
+    "allowed_users": [123456789]
+  },
+
+  "Proxy": {
+    "enabled": false,
+    "url": "socks5://user:password@host:port"
+  },
+
+  "Accounts": [
+    {
+      "alias": "Main Account",
+      "token": "YOUR_KICK_TOKEN_1",
+      "proxy": null,
+      "streamers": ["streamer1", "streamer2", "streamer3"],
+      "max_concurrent": 2
+    }
+  ],
+
+  "Check_interval": 120,
+  "Reconnect_cooldown": 600,
+  "Connection_stagger_min": 3,
+  "Connection_stagger_max": 8
+}
