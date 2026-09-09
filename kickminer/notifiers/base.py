@@ -25,10 +25,13 @@ def summarize_accounts(snapshot: list[dict]) -> str:
         order = acc.get("streamer_order", list(streamers))
         sub = acc.get("total_points", 0)
         grand += sub
+        label = acc.get("token_username") or acc.get("alias")
+        token_flag = "" if acc.get("token_valid") is not False else "  ⚠ token expired"
         lines.append(
-            f"▸ {acc.get('alias')}  "
+            f"▸ Account ({label})  "
             f"[{acc.get('active_count')}/{acc.get('max_concurrent')}]  "
             f"up {format_uptime(acc.get('uptime_seconds', 0))}  ·  {sub:,} pts"
+            f"{token_flag}"
         )
         for name in order:
             s = streamers.get(name, {})
