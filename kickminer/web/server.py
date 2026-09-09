@@ -24,7 +24,7 @@ from loguru import logger
 from ..config_editor import ConfigEditError, apply_action, read_editable
 
 _TEMPLATE_PATH = Path(__file__).parent / "dashboard.html"
-_LOG_PATH = Path(__file__).resolve().parent.parent.parent / "logs" / "kickminer.log"
+_LOG_PATH = Path("logs") / "kickminer.log"
 _MAX_LOG_TAIL = 512 * 1024
 
 

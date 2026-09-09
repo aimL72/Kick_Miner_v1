@@ -1,8 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "kick-channel-points-miner"
 version = "0.1.0"
-description = "A pure Kick channel-points farming bot"
+description = "A pure Kick.com channel-points farming bot"
+readme = "README.md"
 requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "curl_cffi>=0.9.0",
+    "loguru>=0.7.2",
+    "flask>=3.0.0",
+    "waitress>=3.0.0",
+    "python-telegram-bot>=21.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+kick-miner = "main:main"
+
+[tool.setuptools]
+py-modules = ["main", "conftest"]
+
+[tool.setuptools.packages.find]
+include = ["kickminer*"]
+
+[tool.setuptools.package-data]
+kickminer = ["web/dashboard.html", "lang/*.lang"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

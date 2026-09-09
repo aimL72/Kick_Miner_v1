@@ -13,7 +13,8 @@ from pathlib import Path
 
 from loguru import logger
 
-_DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+# relative to the working directory the miner is launched from
+_DATA_DIR = Path("data")
 
 
 class Analytics:

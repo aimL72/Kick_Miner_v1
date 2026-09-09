@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 
 DEFAULT_LANGUAGE = "en"
-_LANG_DIR = Path(__file__).resolve().parent.parent / "lang"
+_LANG_DIR = Path(__file__).resolve().parent / "lang"
 
 _current = DEFAULT_LANGUAGE
 _data: dict[str, str] = {}

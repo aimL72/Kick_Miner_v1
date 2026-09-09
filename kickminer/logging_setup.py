@@ -11,7 +11,8 @@ from pathlib import Path
 
 from loguru import logger
 
-_LOG_DIR = Path(__file__).resolve().parent.parent / "logs"
+# relative to the working directory the miner is launched from
+_LOG_DIR = Path("logs")
 
 _CONSOLE_FORMAT = (
     "<green>{time:YYYY-MM-DD HH:mm:ss}</green> "

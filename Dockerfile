@@ -1,25 +1,20 @@
-FROM python:3.12-slim AS builder
-
-WORKDIR /build
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        gcc libcurl4-openssl-dev libssl-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
-
 FROM python:3.12-slim
 
 LABEL org.opencontainers.image.title="Kick Channel Points Miner" \
       org.opencontainers.image.description="A pure Kick channel-points farming bot"
 
-RUN apt-get update && apt-get install -y --no-install-recommends libcurl4 \
-    && rm -rf /var/lib/apt/lists/*
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
 
-COPY --from=builder /install /usr/local
 WORKDIR /app
-COPY . .
 
-ENV PYTHONUNBUFFERED=1
+# curl_cffi ships a manylinux wheel with libcurl-impersonate bundled,
+# so no compiler / -dev packages are needed.
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+RUN mkdir -p /app/logs /app/data
+
 EXPOSE 5000
 CMD ["python", "main.py"]
