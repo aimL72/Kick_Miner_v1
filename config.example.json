@@ -38,6 +38,13 @@
       "proxy": null,
       "streamers": ["streamer1", "streamer2", "streamer3"],
       "max_concurrent": 2
+    },
+    {
+      "alias": "Second Account",
+      "token": "YOUR_KICK_TOKEN_2",
+      "proxy": "socks5://user:pass@host:1080",
+      "streamers": ["streamer2", "streamer4"],
+      "max_concurrent": 1
     }
   ],
 
