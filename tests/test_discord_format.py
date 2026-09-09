@@ -32,31 +32,35 @@ def test_startup_shutdown():
     assert base.msg_shutdown("user stopped") == "🔴 Kick Miner stopped — user stopped"
 
 
-def test_discord_sends_plain_content_no_backticks(monkeypatch):
+def test_discord_sends_embeds_with_shared_text(monkeypatch):
     cfg = DiscordConfig(enabled=True, webhook_url="https://x/y", min_points_gain=1)
     n = DiscordNotifier(cfg)
     captured = []
-    monkeypatch.setattr(n, "_send", captured.append)
+    monkeypatch.setattr(n, "_send", lambda msg, kind: captured.append((msg, kind)))
     n._q.queue.clear()
 
     n.status_change("Main", SNAP, "online")
+    n.status_change("Main", SNAP, "offline")
     n.points_gain("Main", SNAP, 3400, 3412)
     import time
 
     time.sleep(0.3)
     n.close()
     assert captured == [
-        ">>> Account aimL72\n🥳 gaules is online",
-        ">>> Account aimL72\n🚀 gaules +12 → 3,412 Points",
+        ("Account aimL72\n🥳 gaules is online", "online"),
+        ("Account aimL72\n😴 gaules is offline", "offline"),
+        ("Account aimL72\n🚀 gaules +12 → 3,412 Points", "gain"),
     ]
-    assert "`" not in captured[0]
+    # embed payload carries the colour border
+    p = n._payload("x", "online")
+    assert p["embeds"][0]["color"] == 0x53FC18 and p["embeds"][0]["description"] == "x"
 
 
 def test_discord_respects_min_points_gain(monkeypatch):
     cfg = DiscordConfig(enabled=True, webhook_url="https://x/y", min_points_gain=10)
     n = DiscordNotifier(cfg)
     captured = []
-    monkeypatch.setattr(n, "_send", captured.append)
+    monkeypatch.setattr(n, "_send", lambda msg, kind: captured.append(msg))
     n._q.queue.clear()
     n.points_gain("Main", SNAP, 100, 105)  # +5, suppressed
     n.points_gain("Main", SNAP, 100, 130)  # +30, sent
@@ -64,4 +68,4 @@ def test_discord_respects_min_points_gain(monkeypatch):
 
     time.sleep(0.3)
     n.close()
-    assert captured == [">>> Account aimL72\n🚀 gaules +30 → 130 Points"]
+    assert captured == ["Account aimL72\n🚀 gaules +30 → 130 Points"]

@@ -1,17 +1,16 @@
 """Discord webhook notifier.
 
-Sends the same two-line messages as the Telegram bot (one shared vocabulary in
-``notifiers.base``), as plain webhook ``content`` - no embeds - wrapped in a
-Discord block quote (``>>> ``):
+The message *text* is the same two-line wording the Telegram bot uses (one
+shared vocabulary in ``notifiers.base``); Discord wraps it in an embed so it
+gets the coloured left border:
 
-    >>> 🟢 Kick Miner started — 2 account(s), 5 streamers
-    >>> Account aimL72
-    🥳 gaules is online
-    Account aimL72
-    😴 gaules is offline
-    Account aimL72
-    🚀 gaules +12 → 3,412 Points
-    🔴 Kick Miner stopped — user stopped
+    ┃ Account aimL72
+    ┃ 🥳 gaules is online          (green)
+    ┃ Account aimL72
+    ┃ 😴 gaules is offline         (grey)
+    ┃ Account aimL72
+    ┃ 🚀 gaules +12 → 3,412 Points (green)
+    ┃ 🔴 Kick Miner stopped — user stopped   (red)
 
 Sends run on a daemon queue-thread so the async mining loop never blocks;
 1 request/second self-limit with a single retry on HTTP 429.
@@ -31,13 +30,25 @@ from . import base
 
 _DEFAULT_USERNAME = "Kick Channel Points Miner"
 
+_GREEN, _GREY, _RED, _BLUE = 0x53FC18, 0x8B8FA3, 0xF04747, 0x5865F2
+_COLOR = {
+    "online": _GREEN,
+    "gain": _GREEN,
+    "start": _GREEN,
+    "claim": _GREEN,
+    "offline": _GREY,
+    "stop": _RED,
+    "error": _RED,
+    "info": _BLUE,
+}
+
 
 class DiscordNotifier:
     def __init__(self, cfg) -> None:
         self.cfg = cfg
         self.enabled = bool(cfg.enabled and cfg.webhook_url)
         self.username = cfg.username or _DEFAULT_USERNAME
-        self._q: queue.Queue[str | None] = queue.Queue()
+        self._q: queue.Queue[tuple[str, str] | None] = queue.Queue()
         self._worker: threading.Thread | None = None
         self._last_send = 0.0
         if self.enabled:
@@ -52,34 +63,34 @@ class DiscordNotifier:
 
     def startup(self, accounts: list[dict]) -> None:
         if self._on("notify_startup"):
-            self._enqueue(base.msg_startup(accounts))
+            self._enqueue(base.msg_startup(accounts), "start")
 
     def shutdown(self, reason: str) -> None:
         if self.enabled:
-            self._enqueue(base.msg_shutdown(reason))
+            self._enqueue(base.msg_shutdown(reason), "stop")
 
     def points_gain(self, alias: str, snap: dict, old: int, new: int) -> None:
         if not self._on("notify_points"):
             return
         if new - old < max(1, self.cfg.min_points_gain):
             return
-        self._enqueue(base.msg_points(alias, snap, old, new))
+        self._enqueue(base.msg_points(alias, snap, old, new), "gain")
 
     def bonus_claim(self, alias: str, snap: dict) -> None:
         if self._on("notify_points"):
-            self._enqueue(base.msg_claim(alias, snap))
+            self._enqueue(base.msg_claim(alias, snap), "claim")
 
     def status_change(self, alias: str, snap: dict, action: str) -> None:
         if self._on("notify_status_change") and action in ("online", "offline"):
-            self._enqueue(base.msg_status(alias, snap, action))
+            self._enqueue(base.msg_status(alias, snap, action), action)
 
     def error(self, alias: str, streamer: str, message: str) -> None:
         if self._on("notify_errors"):
-            self._enqueue(base.msg_error(alias, streamer, message))
+            self._enqueue(base.msg_error(alias, streamer, message), "error")
 
     def token_expired(self, alias: str) -> None:
         if self._on("notify_errors"):
-            self._enqueue(base.msg_token_expired(alias))
+            self._enqueue(base.msg_token_expired(alias), "error")
 
     def close(self) -> None:
         if self._worker is not None:
@@ -91,28 +102,30 @@ class DiscordNotifier:
     def _on(self, flag: str) -> bool:
         return self.enabled and bool(getattr(self.cfg, flag, True))
 
-    def _enqueue(self, message: str) -> None:
-        # ">>> " renders the whole message as a Discord block quote
-        self._q.put(">>> " + message)
+    def _enqueue(self, message: str, kind: str = "info") -> None:
+        self._q.put((message, kind))
 
     def _run(self) -> None:
         while True:
-            content = self._q.get()
-            if content is None:
+            item = self._q.get()
+            if item is None:
                 return
-            self._send(content)
+            self._send(*item)
 
-    def _payload(self, content: str) -> dict:
-        payload: dict[str, str] = {"content": content, "username": self.username}
+    def _payload(self, message: str, kind: str) -> dict:
+        payload: dict = {
+            "username": self.username,
+            "embeds": [{"description": message, "color": _COLOR.get(kind, _BLUE)}],
+        }
         if self.cfg.avatar_url:
             payload["avatar_url"] = self.cfg.avatar_url
         return payload
 
-    def _send(self, content: str) -> None:
+    def _send(self, message: str, kind: str) -> None:
         gap = time.time() - self._last_send
         if gap < 1.0:
             time.sleep(1.0 - gap)
-        body = json.dumps(self._payload(content))
+        body = json.dumps(self._payload(message, kind))
         headers = {"Content-Type": "application/json"}
         try:
             resp = requests.post(
