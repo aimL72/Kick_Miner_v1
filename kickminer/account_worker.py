@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import random
+import time
 from datetime import datetime, timezone
 
 from loguru import logger
@@ -38,12 +39,33 @@ def select_active(order: list[str], online: set[str], max_concurrent: int) -> li
     return eligible[: max(0, max_concurrent)]
 
 
+def eligible_online(
+    order: list[str], streamers: dict, watching: set[str], now: float
+) -> set[str]:
+    """Online streamers that are not sitting out a reconnect cooldown.
+
+    A streamer already being watched (in ``watching``) is always kept even if a
+    stale cooldown value lingers.
+    """
+
+    out: set[str] = set()
+    for name in order:
+        st = streamers[name]
+        if not st.is_online:
+            continue
+        if st.cooldown_until > now and name not in watching:
+            continue
+        out.add(name)
+    return out
+
+
 class AccountWorker:
     def __init__(
         self,
         cfg: AccountConfig,
         *,
         check_interval: float = 120.0,
+        reconnect_cooldown: float = 600.0,
         stagger_min: float = 3.0,
         stagger_max: float = 8.0,
         on_points_gain=None,
@@ -53,6 +75,7 @@ class AccountWorker:
     ) -> None:
         self.cfg = cfg
         self.check_interval = check_interval
+        self.reconnect_cooldown = max(0.0, reconnect_cooldown)
         self.stagger_min = stagger_min
         self.stagger_max = stagger_max
         self._on_points_gain = on_points_gain
@@ -155,11 +178,13 @@ class AccountWorker:
 
     async def _rebalance(self) -> None:
         async with self._rebalance_lock:
-            online = {n for n in self.state.order if self.state.streamers[n].is_online}
+            current = set(self._ws)
+            online = eligible_online(
+                self.state.order, self.state.streamers, current, time.monotonic()
+            )
             desired = set(
                 select_active(self.state.order, online, self.cfg.max_concurrent)
             )
-            current = set(self._ws)
 
             for name in current - desired:
                 reason = (
@@ -209,7 +234,17 @@ class AccountWorker:
             st.points_start = st.points
 
             async def _on_closed(streamer: str = name) -> None:
-                self.state.streamers[streamer].is_watching = False
+                s = self.state.streamers[streamer]
+                s.is_watching = False
+                # WS gave up after its own retries -> hold off before we try again
+                if self.reconnect_cooldown > 0 and streamer in self._ws:
+                    s.cooldown_until = time.monotonic() + self.reconnect_cooldown
+                    s.error_count += 1
+                    logger.warning(
+                        f"[{self.cfg.alias}] {streamer} WS gave up - cooldown "
+                        f"{int(self.reconnect_cooldown)}s before retry"
+                    )
+                self._ws.pop(streamer, None)
 
             ws = ViewerWebSocket(
                 ws_token=ws_token,

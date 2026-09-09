@@ -91,7 +91,7 @@ Schlüssel in `config.json` (vollständiges Beispiel: `config.example.json`):
 | `Accounts[].streamers` | geordnete Liste – **Position = Priorität**, Index 0 = höchste |
 | `Accounts[].max_concurrent` | wie viele Streamer gleichzeitig geschaut werden |
 | `Check_interval` | Sekunden zwischen den Online-Checks |
-| `Reconnect_cooldown` | Sekunden vor einem Reconnect-Versuch |
+| `Reconnect_cooldown` | wenn die WebSocket eines Streamers aufgibt: Wartezeit in Sekunden bis zum erneuten Versuch |
 | `Connection_stagger_min/max` | Verzögerungsbereich zwischen Verbindungsaufbauten |
 
 Das alte Einzel-Account-Format (`Private.token` / `Streamers` /

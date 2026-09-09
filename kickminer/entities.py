@@ -7,6 +7,7 @@ notifiers, so keep them plain and cheap to snapshot.
 from __future__ import annotations
 
 import asyncio
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
@@ -33,6 +34,7 @@ class StreamerState:
 
     error_count: int = 0
     last_error: str | None = None
+    cooldown_until: float = 0.0  # time.monotonic() before which we won't reconnect
 
     ws_task: asyncio.Task | None = None
     points_task: asyncio.Task | None = None
@@ -59,6 +61,7 @@ class StreamerState:
             ),
             "stream_id": self.stream_id,
             "errors": self.error_count,
+            "cooldown_seconds": max(0, int(self.cooldown_until - time.monotonic())),
         }
 
 

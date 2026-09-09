@@ -1,4 +1,6 @@
-from kickminer.account_worker import select_active
+import time
+
+from kickminer.account_worker import eligible_online, select_active
 from kickminer.entities import AccountState, StreamerState
 
 
@@ -26,6 +28,35 @@ def test_fewer_online_than_limit():
 
 def test_ignores_unknown_online_names():
     assert select_active(ORDER, {"ghost", "s1"}, 5) == ["s1"]
+
+
+def _states(online, cooldown=None):
+    cooldown = cooldown or {}
+    d = {}
+    for i, n in enumerate(ORDER):
+        s = StreamerState(name=n, priority=i)
+        s.is_online = n in online
+        s.cooldown_until = cooldown.get(n, 0.0)
+        d[n] = s
+    return d
+
+
+def test_eligible_online_excludes_cooldown():
+    now = time.monotonic()
+    st = _states({"s0", "s1", "s2"}, cooldown={"s1": now + 300})
+    assert eligible_online(ORDER, st, watching=set(), now=now) == {"s0", "s2"}
+
+
+def test_eligible_online_keeps_watched_despite_cooldown():
+    now = time.monotonic()
+    st = _states({"s0", "s1"}, cooldown={"s1": now + 300})
+    assert eligible_online(ORDER, st, watching={"s1"}, now=now) == {"s0", "s1"}
+
+
+def test_eligible_online_expired_cooldown():
+    now = time.monotonic()
+    st = _states({"s0"}, cooldown={"s0": now - 5})
+    assert eligible_online(ORDER, st, watching=set(), now=now) == {"s0"}
 
 
 def test_account_snapshot_shape():

@@ -29,6 +29,7 @@ class AccountManager:
             AccountWorker(
                 acc,
                 check_interval=config.check_interval,
+                reconnect_cooldown=config.reconnect_cooldown,
                 stagger_min=config.stagger_min,
                 stagger_max=config.stagger_max,
                 on_points_gain=on_points_gain,

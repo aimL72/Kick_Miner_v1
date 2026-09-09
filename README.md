@@ -88,7 +88,7 @@ Tokens expire; if the points check starts failing, grab a fresh one.
 | `Accounts[].streamers` | ordered list – **position = priority**, index 0 highest |
 | `Accounts[].max_concurrent` | how many streamers to watch at once |
 | `Check_interval` | seconds between online checks |
-| `Reconnect_cooldown` | seconds before a reconnect attempt |
+| `Reconnect_cooldown` | after a streamer's WebSocket gives up, seconds to wait before retrying that streamer |
 | `Connection_stagger_min/max` | delay range between opening connections |
 
 The old single-account layout (`Private.token` / `Streamers` /
