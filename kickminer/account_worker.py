@@ -4,8 +4,9 @@ One :class:`AccountWorker` owns one Kick token, its own HTTP client (so proxy
 and auth are isolated) and N possible :class:`ViewerWebSocket` sessions, capped
 at ``max_concurrent``.
 
-The HTTP layer (curl_cffi) is synchronous; every call is pushed to a worker
-thread via :func:`asyncio.to_thread` so the event loop keeps running.
+The HTTP layer (curl_cffi) is synchronous and NOT thread-safe, so every call
+goes through ``self._http.run(...)`` which runs it on this client's single
+dedicated worker thread - never the shared default executor.
 """
 
 from __future__ import annotations
@@ -154,7 +155,7 @@ class AccountWorker:
                 return
             st = self.state.streamers[name]
             try:
-                channel = await asyncio.to_thread(self._api.get_channel, name)
+                channel = await self._http.run(self._api.get_channel, name)
             except Exception as exc:  # noqa: BLE001
                 logger.warning(f"[{self.cfg.alias}] online check {name}: {exc}")
                 continue
@@ -215,19 +216,19 @@ class AccountWorker:
         st = self.state.streamers[name]
         try:
             if not st.channel_id or not st.user_id:
-                channel = await asyncio.to_thread(self._api.get_channel, name)
+                channel = await self._http.run(self._api.get_channel, name)
                 if channel is None:
                     raise RuntimeError("channel lookup failed")
                 st.channel_id, st.user_id = channel.channel_id, channel.user_id
                 st.stream_id = channel.stream_id
 
-            ws_token = await asyncio.to_thread(
+            ws_token = await self._http.run(
                 self._api.get_viewer_ws_token, name, st.channel_id, st.user_id
             )
             if not ws_token:
                 raise RuntimeError("no viewer WS token")
 
-            balance = await asyncio.to_thread(self._api.get_points, name)
+            balance = await self._http.run(self._api.get_points, name)
             if balance is not None:
                 st.points = balance
                 self._record_points(name, balance)
@@ -249,7 +250,7 @@ class AccountWorker:
             async def _fresh_token(
                 streamer: str = name, cid: int = st.channel_id, uid: int = st.user_id
             ) -> str | None:
-                return await asyncio.to_thread(
+                return await self._http.run(
                     self._api.get_viewer_ws_token, streamer, cid, uid
                 )
 
@@ -314,7 +315,7 @@ class AccountWorker:
                 await asyncio.sleep(random.uniform(*_POINTS_POLL_EVERY))
                 if not st.is_watching:
                     break
-                amount = await asyncio.to_thread(self._api.get_points, name)
+                amount = await self._http.run(self._api.get_points, name)
                 if amount is None:
                     continue
                 old = st.points
@@ -345,7 +346,7 @@ class AccountWorker:
 
     async def _check_token(self) -> None:
         try:
-            ident = await asyncio.to_thread(self._api.token_identity)
+            ident = await self._http.run(self._api.token_identity)
         except Exception as exc:  # noqa: BLE001
             logger.debug(f"[{self.cfg.alias}] token check failed: {exc}")
             return

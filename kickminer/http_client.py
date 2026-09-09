@@ -10,13 +10,18 @@ reusable client: one bootstrap, one cookie jar, one 403-retry path.
 
 from __future__ import annotations
 
+import asyncio
+import itertools
 import random
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from curl_cffi import requests
 from loguru import logger
+
+_client_seq = itertools.count()
 
 from .i18n import t
 
@@ -47,7 +52,14 @@ _BASE_HEADERS = {
 
 
 class KickHttpClient:
-    """Thread-safe wrapper around a single ``curl_cffi`` session."""
+    """Wrapper around a single ``curl_cffi`` session.
+
+    ``curl_cffi``'s sync ``Session`` is not safe to touch from multiple OS
+    threads, even serialized - doing so segfaults the process under load. So
+    every request runs on this client's own single worker thread; call the
+    async helpers (``a_get`` / ``a_get_json`` / ``a_request``) from the event
+    loop, or wrap sync calls with :meth:`run`.
+    """
 
     def __init__(
         self,
@@ -64,6 +76,9 @@ class KickHttpClient:
         self._client_token = client_token
         self._lock = threading.Lock()
         self._bootstrapped = False
+        self._executor = ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix=f"kickhttp-{next(_client_seq)}"
+        )
 
         proxies = {"http": proxy, "https": proxy} if proxy else None
         self._session = requests.Session(impersonate=impersonate, proxies=proxies)
@@ -182,11 +197,26 @@ class KickHttpClient:
         except Exception:  # noqa: BLE001 - non-JSON body
             return None
 
+    # ------------------------------------------------------------------ #
+    # async wrappers - everything runs on this client's single worker thread
+
+    async def run(self, fn, /, *args: Any) -> Any:
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(self._executor, fn, *args)
+
+    async def a_get(self, url: str, **kwargs: Any) -> requests.Response | None:
+        return await self.run(lambda: self.get(url, **kwargs))
+
+    async def a_get_json(self, url: str, **kwargs: Any) -> Any | None:
+        return await self.run(lambda: self.get_json(url, **kwargs))
+
     def close(self) -> None:
+        # the curl session must be closed on its owning thread
         try:
-            self._session.close()
+            self._executor.submit(self._session.close).result(timeout=5)
         except Exception:  # noqa: BLE001
             pass
+        self._executor.shutdown(wait=False, cancel_futures=True)
 
 
 def safe_get(data: Any, *keys: str | int) -> Any | None:
