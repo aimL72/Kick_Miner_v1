@@ -82,11 +82,13 @@ def test_telegram_push_format():
     bot._broadcast = fake
     snap = {"name": "xqc", "account_username": "aimL72", "account_alias": "Main Account"}
     asyncio.run(bot.notify_status("Main Account", snap, "online"))
+    asyncio.run(bot.notify_status("Main Account", snap, "offline"))
     asyncio.run(bot.notify_points("Main Account", snap, 3400, 3412))
-    assert sent[0] == "📡 Account (aimL72) · Streamer xqc is online"
-    assert sent[1] == "💰 Account (aimL72) · Streamer xqc +12 → 3,412"
+    assert sent[0] == "🥳 Account aimL72\nStreamer xqc is online"
+    assert sent[1] == "😴 Account aimL72\nStreamer xqc is offline"
+    assert sent[2] == "🚀 Account aimL72\nStreamer xqc +12 → 3,412"
 
 
 def test_telegram_acct_falls_back_to_alias():
-    assert TelegramBot._acct("Main Account", {"name": "x"}) == "Account (Main Account)"
-    assert TelegramBot._acct("Main Account", {"account_username": "aimL72"}) == "Account (aimL72)"
+    assert TelegramBot._acct("Main Account", {"name": "x"}) == "Account Main Account"
+    assert TelegramBot._acct("Main Account", {"account_username": "aimL72"}) == "Account aimL72"

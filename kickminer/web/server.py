@@ -39,7 +39,7 @@ def start_dashboard(
     """``get_manager`` is a callable returning the current AccountManager
     (it is replaced on every supervisor restart)."""
 
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder="static", static_url_path="/static")
     logging.getLogger("werkzeug").setLevel(logging.ERROR)
 
     @app.route("/")

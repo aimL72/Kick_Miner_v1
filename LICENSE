@@ -34,3 +34,9 @@ Dieses Projekt baut auf Wissen und Ideen der folgenden Projekte auf:
   als konzeptionelle Vorlage fuer Architektur und Feature-Umfang. Es wurde
   kein Quellcode uebernommen.
   https://github.com/zarmstrong/Twitch-Channel-Points-Miner-v3
+
+Gebuendelte Drittanbieter-Software:
+
+* SortableJS 1.15.6 (MIT) — kickminer/web/static/sortable.min.js, fuer das
+  Drag-and-Drop der Streamer-Reihenfolge im Dashboard.
+  https://github.com/SortableJS/Sortable

@@ -76,6 +76,16 @@ def read_editable(path: str | Path) -> dict:
     return {"accounts": out}
 
 
+def _validate_token(raw: str) -> str:
+    tok = str(raw or "").strip()
+    if not TOKEN_RE.match(tok):
+        raise ConfigEditError(
+            "That does not look like a Kick bearer token "
+            "(expected '123456|abcdef...')."
+        )
+    return tok
+
+
 def apply_action(path: str | Path, action: dict) -> dict:
     path = Path(path)
     kind = action.get("action")
@@ -83,6 +93,40 @@ def apply_action(path: str | Path, action: dict) -> dict:
 
     with _LOCK:
         raw = json.loads(path.read_text(encoding="utf-8"))
+        raw.setdefault("Accounts", [])
+
+        # ---- account-level actions (no existing account to look up) ----
+        if kind == "add_account":
+            new_alias = str(action.get("alias") or "").strip()
+            if not new_alias:
+                raise ConfigEditError("Account name must not be empty.")
+            if any(str(a.get("alias")) == new_alias for a in raw["Accounts"]):
+                raise ConfigEditError(f"An account named {new_alias!r} already exists.")
+            raw["Accounts"].append(
+                {
+                    "alias": new_alias,
+                    "token": _validate_token(action.get("token")),
+                    "proxy": None,
+                    "streamers": [],
+                    "max_concurrent": 2,
+                }
+            )
+            _atomic_write(path, raw)
+            return read_editable(path)
+
+        if kind == "remove_account":
+            if len(raw["Accounts"]) <= 1:
+                raise ConfigEditError("Cannot remove the last account.")
+            before = len(raw["Accounts"])
+            raw["Accounts"] = [
+                a for a in raw["Accounts"] if str(a.get("alias")) != alias
+            ]
+            if len(raw["Accounts"]) == before:
+                raise ConfigEditError(f"Unknown account: {alias!r}")
+            _atomic_write(path, raw)
+            return read_editable(path)
+
+        # ---- streamer-level actions (operate on one account) ----
         acc = _find(raw, alias)
         streamers: list[str] = [
             str(s).strip().lower() for s in acc.get("streamers", []) if str(s).strip()
@@ -116,13 +160,7 @@ def apply_action(path: str | Path, action: dict) -> dict:
             acc["max_concurrent"] = limit
 
         elif kind == "set_token":
-            tok = str(action.get("token") or "").strip()
-            if not TOKEN_RE.match(tok):
-                raise ConfigEditError(
-                    "That does not look like a Kick bearer token "
-                    "(expected '123456|abcdef...')."
-                )
-            acc["token"] = tok
+            acc["token"] = _validate_token(action.get("token"))
 
         else:
             raise ConfigEditError(f"Unknown action: {kind!r}")

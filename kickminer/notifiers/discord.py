@@ -28,29 +28,10 @@ from textwrap import dedent
 from curl_cffi import requests
 from loguru import logger
 
-from ..utils import millify
+from .base import EMOJI as _EMOJI
+from .base import streamer_repr as _streamer
 
 _DEFAULT_USERNAME = "Kick Channel Points Miner"
-
-_EMOJI = {
-    "online": "🥳",
-    "offline": "😴",
-    "gain": "🚀",
-    "claim": "🎁",
-    "start": "🟢",
-    "stop": "🔴",
-    "error": "⚠️",
-}
-
-
-def _streamer(name: str, channel_id, points) -> str:
-    """The Twitch miner's ``Streamer.__repr__`` form."""
-
-    cid = channel_id if channel_id is not None else "?"
-    return (
-        f"Streamer(username={name}, channel_id={cid}, "
-        f"channel_points={millify(points)})"
-    )
 
 
 def _fence(message: str) -> str:

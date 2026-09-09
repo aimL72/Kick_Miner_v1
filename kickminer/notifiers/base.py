@@ -1,6 +1,29 @@
-"""Formatting helpers shared by the notifiers."""
+"""Formatting helpers shared by the notifiers (Discord + Telegram use the same)."""
 
 from __future__ import annotations
+
+from ..utils import millify
+
+# One emoji vocabulary for every outbound channel.
+EMOJI = {
+    "online": "🥳",
+    "offline": "😴",
+    "gain": "🚀",
+    "claim": "🎁",
+    "start": "🟢",
+    "stop": "🔴",
+    "error": "⚠️",
+}
+
+
+def streamer_repr(name: str, channel_id, points) -> str:
+    """The Twitch miner's ``Streamer.__repr__`` form."""
+
+    cid = channel_id if channel_id is not None else "?"
+    return (
+        f"Streamer(username={name}, channel_id={cid}, "
+        f"channel_points={millify(points)})"
+    )
 
 
 def format_uptime(seconds: int | float) -> str:

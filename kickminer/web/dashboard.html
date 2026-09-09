@@ -110,11 +110,19 @@
   button.btn:disabled{opacity:.5;cursor:not-allowed}
   .sitem{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--border);
          border-radius:8px;padding:7px 10px;margin-bottom:5px}
-  .sitem .idx{color:var(--muted);font-size:11px;width:18px}
+  .sitem .grip{cursor:grab;color:var(--muted);font-size:14px;line-height:1;user-select:none;
+               padding:0 2px;letter-spacing:-2px}
+  .sitem .grip:active{cursor:grabbing}
+  .sitem .idx{color:var(--muted);font-size:11px;width:20px;text-align:right}
   .sitem .nm{flex:1;font-size:13px}
-  .sitem .mv{background:var(--panel3);border:1px solid var(--border);color:var(--fg2);border-radius:5px;
-             width:24px;height:24px;cursor:pointer;font-size:12px;line-height:1}
-  .sitem .mv:disabled{opacity:.35;cursor:default}
+  .sitem.sortable-ghost{opacity:.4;border-style:dashed;border-color:var(--accent)}
+  .sitem.sortable-chosen{background:var(--panel3)}
+  .rm-acct{margin-left:auto}
+  .add-acct{border-top:1px solid var(--border);margin-top:18px;padding-top:16px}
+  .add-acct h4{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--fg2);margin-bottom:10px}
+  .add-acct .row2{display:flex;gap:6px;flex-wrap:wrap}
+  .add-acct input{flex:1;min-width:150px;background:var(--panel2);border:1px solid var(--border);
+                  color:var(--fg);border-radius:7px;padding:7px 10px;font-size:13px}
   .err{color:var(--red);font-size:12px;margin-top:6px;min-height:16px}
 
   /* log tab */
@@ -186,6 +194,7 @@
   </section>
 </div>
 
+<script src="/static/sortable.min.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 const fmt = n => (n||0).toLocaleString();
@@ -347,6 +356,8 @@ async function cfgAction(body){
 function renderConfig(){
   const body=$('#cfgbody'); body.innerHTML='';
   if(!CFG||!CFG.accounts){body.textContent='No editable accounts.';return;}
+  const many=CFG.accounts.length>1;
+
   CFG.accounts.forEach(acc=>{
     const w=el('div','cfgacc');
     const head=el('div','head');
@@ -355,6 +366,9 @@ function renderConfig(){
     const inp=el('input'); inp.type='number'; inp.min=1; inp.max=50; inp.value=acc.max_concurrent;
     inp.onchange=()=>cfgAction({action:'set_limit',account:acc.alias,max_concurrent:+inp.value});
     lim.appendChild(inp); head.appendChild(lim);
+    const ra=el('button','btn danger rm-acct','Remove account'); ra.type='button'; ra.disabled=!many;
+    ra.onclick=()=>{ if(confirm('Remove account "'+acc.alias+'" from the miner?')) cfgAction({action:'remove_account',account:acc.alias}); };
+    head.appendChild(ra);
     w.appendChild(head);
 
     // --- token row ---
@@ -380,22 +394,43 @@ function renderConfig(){
     f.onsubmit=e=>{e.preventDefault(); const v=ai.value.trim(); if(v) cfgAction({action:'add',account:acc.alias,streamer:v});};
     w.appendChild(f);
 
+    const list=el('div','slist-cfg'); list.dataset.account=acc.alias;
     acc.streamers.forEach((n,i)=>{
-      const it=el('div','sitem');
+      const it=el('div','sitem'); it.dataset.name=n;
+      it.appendChild(el('span','grip','⠿'));
       it.appendChild(el('span','idx','#'+i));
       it.appendChild(el('span','nm',n));
-      const up=el('button','mv','▲'), dn=el('button','mv','▼');
-      up.type=dn.type='button'; up.disabled=i===0; dn.disabled=i===acc.streamers.length-1;
-      up.onclick=()=>{const a=[...acc.streamers];[a[i-1],a[i]]=[a[i],a[i-1]];cfgAction({action:'reorder',account:acc.alias,streamers:a});};
-      dn.onclick=()=>{const a=[...acc.streamers];[a[i+1],a[i]]=[a[i],a[i+1]];cfgAction({action:'reorder',account:acc.alias,streamers:a});};
       const rm=el('button','btn danger','Remove'); rm.type='button';
       rm.onclick=()=>cfgAction({action:'remove',account:acc.alias,streamer:n});
-      it.appendChild(up); it.appendChild(dn); it.appendChild(rm);
-      w.appendChild(it);
+      it.appendChild(rm);
+      list.appendChild(it);
     });
-    if(!acc.streamers.length) w.appendChild(el('div',null,'<span style="color:var(--muted);font-size:12px">No streamers.</span>'));
+    if(!acc.streamers.length) list.appendChild(el('div',null,'<span style="color:var(--muted);font-size:12px">No streamers.</span>'));
+    w.appendChild(list);
     body.appendChild(w);
+
+    if(window.Sortable && acc.streamers.length>1){
+      Sortable.create(list,{handle:'.grip',animation:150,ghostClass:'sortable-ghost',chosenClass:'sortable-chosen',
+        onEnd:evt=>{
+          if(evt.oldIndex===evt.newIndex) return;
+          const order=[...list.querySelectorAll('.sitem')].map(x=>x.dataset.name);
+          cfgAction({action:'reorder',account:acc.alias,streamers:order});
+        }});
+    }
   });
+
+  // --- add account ---
+  const add=el('div','add-acct');
+  add.appendChild(el('h4','','Add a Kick account'));
+  const af=el('form','row2');
+  const na=el('input'); na.placeholder='account name (e.g. Alt)'; na.maxLength=40;
+  const nt=el('input'); nt.placeholder='bearer token  123456|abcdef…'; nt.autocomplete='off';
+  const nb=el('button','btn','Add account'); nb.type='submit';
+  af.appendChild(na); af.appendChild(nt); af.appendChild(nb);
+  af.onsubmit=e=>{e.preventDefault(); if(na.value.trim()&&nt.value.trim())
+    cfgAction({action:'add_account',alias:na.value.trim(),token:nt.value.trim()});};
+  add.appendChild(af);
+  body.appendChild(add);
 }
 
 /* ---- log ---- */
@@ -417,8 +452,10 @@ async function tick(){
     renderData(d);
     $('#clock').textContent=new Date().toLocaleTimeString();
     if(TAB==='points') drawChart();
-    // refresh the Config tab only when a token badge actually changed
-    if(TAB==='config' && CFG && !BUSY){
+    // refresh the Config tab only when a token badge changed and the user
+    // isn't mid-edit (typing / dragging)
+    const editing=document.activeElement && document.activeElement.closest('#cfgbody');
+    if(TAB==='config' && CFG && !BUSY && !editing){
       const sig=JSON.stringify((d.accounts||[]).map(a=>[a.alias,a.token_valid,a.token_username]));
       if(sig!==window._tokSig){ window._tokSig=sig; renderConfig(); }
     }

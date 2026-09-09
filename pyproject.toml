@@ -30,7 +30,7 @@ py-modules = ["main", "conftest"]
 include = ["kickminer*"]
 
 [tool.setuptools.package-data]
-kickminer = ["web/dashboard.html", "lang/*.lang"]
+kickminer = ["web/dashboard.html", "web/static/*", "lang/*.lang"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -105,3 +105,37 @@ def test_unknown_account_and_action(tmp_path):
         apply_action(p, {"action": "add", "account": "Nope", "streamer": "x"})
     with pytest.raises(ConfigEditError):
         apply_action(p, {"action": "explode", "account": "Main"})
+
+
+def test_add_account(tmp_path):
+    p = _cfg(tmp_path)
+    out = apply_action(
+        p, {"action": "add_account", "alias": "Alt", "token": "22|abcdefghij0123456789"}
+    )
+    assert [a["alias"] for a in out["accounts"]] == ["Main", "Alt"]
+    alt = out["accounts"][1]
+    assert alt["streamers"] == [] and alt["max_concurrent"] == 2
+    assert json.loads(p.read_text())["Check_interval"] == 120  # untouched
+
+
+def test_add_account_rejects_dupe_and_bad_token(tmp_path):
+    p = _cfg(tmp_path)
+    with pytest.raises(ConfigEditError):
+        apply_action(p, {"action": "add_account", "alias": "Main", "token": "22|abcdefghij0123456789"})
+    with pytest.raises(ConfigEditError):
+        apply_action(p, {"action": "add_account", "alias": "Alt", "token": "nope"})
+    with pytest.raises(ConfigEditError):
+        apply_action(p, {"action": "add_account", "alias": "", "token": "22|abcdefghij0123456789"})
+
+
+def test_remove_account(tmp_path):
+    p = _cfg(tmp_path)
+    apply_action(p, {"action": "add_account", "alias": "Alt", "token": "22|abcdefghij0123456789"})
+    out = apply_action(p, {"action": "remove_account", "account": "Main"})
+    assert [a["alias"] for a in out["accounts"]] == ["Alt"]
+
+
+def test_remove_last_account_refused(tmp_path):
+    p = _cfg(tmp_path)
+    with pytest.raises(ConfigEditError):
+        apply_action(p, {"action": "remove_account", "account": "Main"})
