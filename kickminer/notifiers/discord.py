@@ -6,10 +6,12 @@ fence for multi-line), posted with a configurable ``username`` / ``avatar_url``.
 No embeds. Each line is ``<emoji>  <message>`` and streamers render as the
 Twitch miner's ``Streamer(...)`` repr:
 
+    🟢  Kick Channel Points Miner started - 1 account(s), 4 streamers.
     🥳  Streamer(username=gaules, channel_id=668, channel_points=1.24M) is Online!
     😴  Streamer(username=gaules, channel_id=668, channel_points=9.4k) is Offline!
     🚀  +12 → Streamer(username=gaules, channel_id=668, channel_points=246.72k) - Reason: WATCH.
     🎁  Claiming the bonus for Streamer(username=gaules, channel_id=668, channel_points=246.72k)!
+    🔴  Kick Channel Points Miner stopped - user stopped.
 
 Sends run on a daemon queue-thread so the async mining loop never blocks;
 1 request/second self-limit with a single retry on HTTP 429.
@@ -35,8 +37,8 @@ _EMOJI = {
     "offline": "😴",
     "gain": "🚀",
     "claim": "🎁",
-    "start": "🚀",
-    "stop": "😴",
+    "start": "🟢",
+    "stop": "🔴",
     "error": "⚠️",
 }
 
