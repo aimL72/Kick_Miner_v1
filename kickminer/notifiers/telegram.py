@@ -19,11 +19,23 @@ from .base import summarize_accounts
 try:
     from telegram import Update
     from telegram.constants import ParseMode
+    from telegram.error import Conflict
     from telegram.ext import Application, CommandHandler, ContextTypes
 
     _PTB = True
 except ImportError:  # pragma: no cover - optional dependency
     _PTB = False
+    Conflict = Exception
+
+
+def _polling_error(exc: Exception) -> None:
+    if isinstance(exc, Conflict):
+        logger.warning(
+            "Telegram: another instance is polling this bot token "
+            "(is the miner running twice?). Retrying."
+        )
+    else:
+        logger.debug(f"Telegram polling error: {exc}")
 
 
 class TelegramBot:
@@ -61,7 +73,9 @@ class TelegramBot:
 
         await self._app.initialize()
         await self._app.start()
-        await self._app.updater.start_polling(drop_pending_updates=True)
+        await self._app.updater.start_polling(
+            drop_pending_updates=True, error_callback=_polling_error
+        )
         logger.info("Telegram bot polling.")
 
         if str(self.cfg.chat_id).strip():
