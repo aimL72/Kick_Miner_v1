@@ -282,7 +282,7 @@ class AccountWorker:
                         )
                     )
                     if self._on_points_gain is not None:
-                        self._on_points_gain(self.cfg.alias, name, old, amount)
+                        self._on_points_gain(self.cfg.alias, st.snapshot(), old, amount)
         except asyncio.CancelledError:
             pass
         except Exception as exc:  # noqa: BLE001
@@ -296,8 +296,9 @@ class AccountWorker:
 
     def _emit_status(self, name: str, action: str) -> None:
         if self._on_status_change is not None:
-            st = self.state.streamers[name]
-            self._on_status_change(self.cfg.alias, name, st.priority, action)
+            self._on_status_change(
+                self.cfg.alias, self.state.streamers[name].snapshot(), action
+            )
 
     def snapshot(self) -> dict:
         return self.state.snapshot()

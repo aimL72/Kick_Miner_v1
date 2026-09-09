@@ -90,11 +90,15 @@ class TelegramBot:
             except Exception as exc:  # noqa: BLE001
                 logger.debug(f"Telegram send to {chat}: {exc}")
 
-    async def notify_points(self, alias: str, streamer: str, old: int, new: int) -> None:
-        await self._broadcast(f"💰 {alias} · {streamer}: +{new - old} (total {new:,})")
+    async def notify_points(self, alias: str, snap: dict, old: int, new: int) -> None:
+        name = snap.get("name") if isinstance(snap, dict) else snap
+        await self._broadcast(
+            f"💰 {alias} · {name}: +{new - old} (total {new:,})"
+        )
 
-    async def notify_status(self, alias: str, streamer: str, action: str) -> None:
-        await self._broadcast(f"📡 {alias} · {streamer}: {action}")
+    async def notify_status(self, alias: str, snap: dict, action: str) -> None:
+        name = snap.get("name") if isinstance(snap, dict) else snap
+        await self._broadcast(f"📡 {alias} · {name}: {action}")
 
     # ------------------------------------------------------------------ #
 

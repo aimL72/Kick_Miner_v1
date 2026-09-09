@@ -42,15 +42,15 @@ class _ManagerHolder:
 
 
 def _make_callbacks(discord: DiscordNotifier, telegram: TelegramBot):
-    def on_points_gain(alias: str, streamer: str, old: int, new: int) -> None:
-        discord.points_gain(alias, streamer, old, new)
+    def on_points_gain(alias: str, snap: dict, old: int, new: int) -> None:
+        discord.points_gain(alias, snap, old, new)
         if telegram.enabled:
-            asyncio.create_task(telegram.notify_points(alias, streamer, old, new))
+            asyncio.create_task(telegram.notify_points(alias, snap, old, new))
 
-    def on_status_change(alias: str, streamer: str, priority: int, action: str) -> None:
-        discord.status_change(alias, streamer, priority, action)
+    def on_status_change(alias: str, snap: dict, action: str) -> None:
+        discord.status_change(alias, snap, action)
         if telegram.enabled and action in {"online", "offline"}:
-            asyncio.create_task(telegram.notify_status(alias, streamer, action))
+            asyncio.create_task(telegram.notify_status(alias, snap, action))
 
     return on_points_gain, on_status_change
 

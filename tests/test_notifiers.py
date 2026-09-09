@@ -36,7 +36,7 @@ def test_summarize_accounts():
 def test_discord_disabled_without_url():
     n = DiscordNotifier(DiscordConfig(enabled=True, webhook_url=""))
     assert n.enabled is False
-    n.points_gain("Main", "x", 0, 100)  # must not raise
+    n.points_gain("Main", {"name": "x", "channel_id": 1, "points": 100}, 0, 100)
 
 
 def test_discord_enqueues_only_above_threshold(monkeypatch):
@@ -46,12 +46,15 @@ def test_discord_enqueues_only_above_threshold(monkeypatch):
     monkeypatch.setattr(n, "_send", sent.append)
     n._q.queue.clear()
 
-    n.points_gain("Main", "x", 100, 105)   # +5, below threshold
-    n.points_gain("Main", "x", 100, 130)   # +30, above
+    snap = {"name": "x", "channel_id": 42, "points": 130}
+    n.points_gain("Main", snap, 100, 105)   # +5, below threshold
+    n.points_gain("Main", snap, 100, 130)   # +30, above
     import time
     time.sleep(0.3)
     n.close()
-    assert sent == ["`+30 -> x (130 points) - Reason: WATCH.`"]
+    assert sent == [
+        "`🚀  +30 → Streamer(username=x, channel_id=42, channel_points=130) - Reason: WATCH.`"
+    ]
 
 
 def test_telegram_permission_logic():

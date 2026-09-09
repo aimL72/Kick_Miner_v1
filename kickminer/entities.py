@@ -47,6 +47,7 @@ class StreamerState:
         return {
             "name": self.name,
             "priority": self.priority,
+            "channel_id": self.channel_id,
             "online": self.is_online,
             "watching": self.is_watching,
             "points": self.points,

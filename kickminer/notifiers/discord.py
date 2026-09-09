@@ -1,13 +1,15 @@
 """Discord webhook notifier.
 
-Message format matches the Twitch Channel Points Miner: a plain ``content``
-string wrapped in backticks (a single pair for one-liners, a triple-backtick
+Message format matches the Twitch Channel Points Miner exactly: a plain
+``content`` string wrapped in backticks (single pair for one-liners, triple
 fence for multi-line), posted with a configurable ``username`` / ``avatar_url``.
-No embeds. The event wording mirrors the Twitch miner's log lines:
+No embeds. Each line is ``<emoji>  <message>`` and streamers render as the
+Twitch miner's ``Streamer(...)`` repr:
 
-    +10 -> gaules (230 points) - Reason: WATCH.
-    gaules (230 points) is Online!
-    gaules (230 points) is Offline!
+    🥳  Streamer(username=gaules, channel_id=668, channel_points=1.24M) is Online!
+    😴  Streamer(username=gaules, channel_id=668, channel_points=9.4k) is Offline!
+    🚀  +12 → Streamer(username=gaules, channel_id=668, channel_points=246.72k) - Reason: WATCH.
+    🎁  Claiming the bonus for Streamer(username=gaules, channel_id=668, channel_points=246.72k)!
 
 Sends run on a daemon queue-thread so the async mining loop never blocks;
 1 request/second self-limit with a single retry on HTTP 429.
@@ -27,6 +29,26 @@ from loguru import logger
 from ..utils import millify
 
 _DEFAULT_USERNAME = "Kick Channel Points Miner"
+
+_EMOJI = {
+    "online": "🥳",
+    "offline": "😴",
+    "gain": "🚀",
+    "claim": "🎁",
+    "start": "🚀",
+    "stop": "😴",
+    "error": "⚠️",
+}
+
+
+def _streamer(name: str, channel_id, points) -> str:
+    """The Twitch miner's ``Streamer.__repr__`` form."""
+
+    cid = channel_id if channel_id is not None else "?"
+    return (
+        f"Streamer(username={name}, channel_id={cid}, "
+        f"channel_points={millify(points)})"
+    )
 
 
 def _fence(message: str) -> str:
@@ -70,37 +92,46 @@ class DiscordNotifier:
             return
         total = len({s for a in accounts for s in a.get("streamer_order", [])})
         self._enqueue(
-            f"Kick Channel Points Miner started - "
+            _EMOJI["start"]
+            + f"  Kick Channel Points Miner started - "
             f"{len(accounts)} account(s), {total} streamers."
         )
 
     def shutdown(self, reason: str) -> None:
         if self.enabled:
-            self._enqueue(f"Kick Channel Points Miner stopped - {reason}.")
+            self._enqueue(
+                _EMOJI["stop"] + f"  Kick Channel Points Miner stopped - {reason}."
+            )
 
-    def points_gain(self, alias: str, streamer: str, old: int, new: int) -> None:
+    def points_gain(self, alias: str, snap: dict, old: int, new: int) -> None:
         if not self._on("notify_points"):
             return
         gain = new - old
         if gain < max(1, self.cfg.min_points_gain):
             return
-        self._enqueue(
-            f"+{gain} -> {streamer} ({millify(new)} points) - Reason: WATCH."
-        )
+        sr = _streamer(snap.get("name"), snap.get("channel_id"), new)
+        self._enqueue(_EMOJI["gain"] + f"  +{gain} → {sr} - Reason: WATCH.")
 
-    def status_change(self, alias: str, streamer: str, priority: int, action: str) -> None:
+    def bonus_claim(self, alias: str, snap: dict) -> None:
+        if not self._on("notify_points"):
+            return
+        sr = _streamer(snap.get("name"), snap.get("channel_id"), snap.get("points"))
+        self._enqueue(_EMOJI["claim"] + f"  Claiming the bonus for {sr}!")
+
+    def status_change(self, alias: str, snap: dict, action: str) -> None:
         if not self._on("notify_status_change"):
             return
-        if action == "online":
-            self._enqueue(f"{streamer} is Online!")
-        elif action == "offline":
-            self._enqueue(f"{streamer} is Offline!")
+        if action not in ("online", "offline"):
+            return
+        sr = _streamer(snap.get("name"), snap.get("channel_id"), snap.get("points"))
+        word = "Online" if action == "online" else "Offline"
+        self._enqueue(_EMOJI[action] + f"  {sr} is {word}!")
 
     def error(self, alias: str, streamer: str, message: str) -> None:
         if not self._on("notify_errors"):
             return
         target = f"{alias}/{streamer}" if streamer else alias
-        self._enqueue(f"Error on {target}: {str(message)[:400]}")
+        self._enqueue(_EMOJI["error"] + f"  Error on {target}: {str(message)[:400]}")
 
     def close(self) -> None:
         if self._worker is not None:
