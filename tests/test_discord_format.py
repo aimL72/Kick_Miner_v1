@@ -12,60 +12,76 @@ def test_millify():
     assert millify(-1500) == "-1.5k"
 
 
-SNAP = {"name": "gaules", "channel_id": 668, "points": 3412, "account_username": "aimL72"}
-
-
-def test_shared_message_builders():
-    assert base.msg_status("Main", SNAP, "online") == "Account aimL72\n🥳 gaules is online"
-    assert base.msg_status("Main", SNAP, "offline") == "Account aimL72\n😴 gaules is offline"
+def test_streamer_repr():
     assert (
-        base.msg_points("Main", SNAP, 3400, 3412)
-        == "Account aimL72\n🚀 gaules +12 → 3,412 Points"
+        base.streamer_repr("die_schlager_camper", 9623471, 10)
+        == "Streamer(username=die_schlager_camper, channel_id=9623471, channel_points=10)"
     )
-    assert base.account_label("Main Account", {"name": "x"}) == "Account Main Account"
+    assert (
+        base.streamer_repr("gaules", 668, 1240000)
+        == "Streamer(username=gaules, channel_id=668, channel_points=1.24M)"
+    )
 
 
-def test_startup_shutdown():
-    assert base.msg_startup(
-        [{"alias": "a", "streamer_order": ["x", "y"]}, {"alias": "b", "streamer_order": ["y"]}]
-    ) == "🟢 Kick Miner started — 2 account(s), 2 streamers"
-    assert base.msg_shutdown("user stopped") == "🔴 Kick Miner stopped — user stopped"
+SNAP = {"name": "gaules", "channel_id": 668, "points": 220}
 
 
-def test_discord_sends_embeds_with_shared_text(monkeypatch):
-    cfg = DiscordConfig(enabled=True, webhook_url="https://x/y", min_points_gain=1)
-    n = DiscordNotifier(cfg)
-    captured = []
-    monkeypatch.setattr(n, "_send", lambda msg, kind: captured.append((msg, kind)))
+def _cap(monkeypatch, n):
+    out = []
+    monkeypatch.setattr(n, "_send", lambda msg, kind: out.append((msg, kind)))
     n._q.queue.clear()
+    return out
+
+
+def test_discord_twitch_wording_in_embed(monkeypatch):
+    n = DiscordNotifier(DiscordConfig(enabled=True, webhook_url="https://x/y", min_points_gain=1))
+    out = _cap(monkeypatch, n)
 
     n.status_change("Main", SNAP, "online")
     n.status_change("Main", SNAP, "offline")
-    n.points_gain("Main", SNAP, 3400, 3412)
+    n.points_gain("Main", SNAP, 220, 230)
+    n.bonus_claim("Main", SNAP)
     import time
 
     time.sleep(0.3)
     n.close()
-    assert captured == [
-        ("Account aimL72\n🥳 gaules is online", "online"),
-        ("Account aimL72\n😴 gaules is offline", "offline"),
-        ("Account aimL72\n🚀 gaules +12 → 3,412 Points", "gain"),
+    assert out == [
+        ("🥳  Streamer(username=gaules, channel_id=668, channel_points=220) is Online!", "online"),
+        ("😴  Streamer(username=gaules, channel_id=668, channel_points=220) is Offline!", "offline"),
+        ("🚀  +10 → Streamer(username=gaules, channel_id=668, channel_points=230) - Reason: WATCH.", "gain"),
+        ("🎁  Claiming the bonus for Streamer(username=gaules, channel_id=668, channel_points=220)!", "claim"),
     ]
-    # embed payload carries the colour border
+    # the embed carries the coloured border
     p = n._payload("x", "online")
-    assert p["embeds"][0]["color"] == 0x53FC18 and p["embeds"][0]["description"] == "x"
+    assert p["embeds"][0]["color"] == 0x53FC18
+    p = n._payload("x", "offline")
+    assert p["embeds"][0]["color"] == 0x8B8FA3
 
 
 def test_discord_respects_min_points_gain(monkeypatch):
-    cfg = DiscordConfig(enabled=True, webhook_url="https://x/y", min_points_gain=10)
-    n = DiscordNotifier(cfg)
-    captured = []
-    monkeypatch.setattr(n, "_send", lambda msg, kind: captured.append(msg))
-    n._q.queue.clear()
-    n.points_gain("Main", SNAP, 100, 105)  # +5, suppressed
-    n.points_gain("Main", SNAP, 100, 130)  # +30, sent
+    n = DiscordNotifier(DiscordConfig(enabled=True, webhook_url="https://x/y", min_points_gain=10))
+    out = _cap(monkeypatch, n)
+    n.points_gain("Main", SNAP, 100, 105)  # +5 suppressed
+    n.points_gain("Main", SNAP, 100, 130)  # +30 sent
     import time
 
     time.sleep(0.3)
     n.close()
-    assert captured == ["Account aimL72\n🚀 gaules +30 → 130 Points"]
+    assert [m for m, _ in out] == [
+        "🚀  +30 → Streamer(username=gaules, channel_id=668, channel_points=130) - Reason: WATCH."
+    ]
+
+
+def test_discord_startup_shutdown(monkeypatch):
+    n = DiscordNotifier(DiscordConfig(enabled=True, webhook_url="https://x/y"))
+    out = _cap(monkeypatch, n)
+    n.startup([{"alias": "a", "streamer_order": ["x", "y"]}, {"alias": "b", "streamer_order": ["y"]}])
+    n.shutdown("user stopped")
+    import time
+
+    time.sleep(0.3)
+    n.close()
+    assert out == [
+        ("🟢  Kick Channel Points Miner started - 2 account(s), 2 streamers.", "start"),
+        ("🔴  Kick Channel Points Miner stopped - user stopped.", "stop"),
+    ]

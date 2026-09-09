@@ -1,16 +1,17 @@
 """Discord webhook notifier.
 
-The message *text* is the same two-line wording the Telegram bot uses (one
-shared vocabulary in ``notifiers.base``); Discord wraps it in an embed so it
-gets the coloured left border:
+Message *text* follows the Twitch Channel Points Miner wording (an emoji plus
+the ``Streamer(username=…, channel_id=…, channel_points=…)`` repr); Discord
+wraps it in an embed so it gets the coloured left border:
 
-    ┃ Account aimL72
-    ┃ 🥳 gaules is online          (green)
-    ┃ Account aimL72
-    ┃ 😴 gaules is offline         (grey)
-    ┃ Account aimL72
-    ┃ 🚀 gaules +12 → 3,412 Points (green)
-    ┃ 🔴 Kick Miner stopped — user stopped   (red)
+    ┃ 🚀  +10 → Streamer(username=die_schlager_camper, channel_id=9623471, channel_points=10) - Reason: WATCH.   (green)
+    ┃ 🥳  Streamer(username=gaules, channel_id=668, channel_points=1.24M) is Online!                              (green)
+    ┃ 😴  Streamer(username=gaules, channel_id=668, channel_points=9.4k) is Offline!                              (grey)
+    ┃ 🎁  Claiming the bonus for Streamer(username=gaules, channel_id=668, channel_points=10)!                    (green)
+    ┃ 🟢  Kick Channel Points Miner started - 2 account(s), 5 streamers.                                          (green)
+    ┃ 🔴  Kick Channel Points Miner stopped - user stopped.                                                       (red)
+
+(Telegram uses its own shorter two-line wording - see notifiers/telegram.py.)
 
 Sends run on a daemon queue-thread so the async mining loop never blocks;
 1 request/second self-limit with a single retry on HTTP 429.
@@ -26,7 +27,7 @@ import time
 from curl_cffi import requests
 from loguru import logger
 
-from . import base
+from .base import EMOJI, streamer_repr
 
 _DEFAULT_USERNAME = "Kick Channel Points Miner"
 
@@ -41,6 +42,11 @@ _COLOR = {
     "error": _RED,
     "info": _BLUE,
 }
+
+
+def _sr(snap: dict, points=None) -> str:
+    pts = snap.get("points") if points is None else points
+    return streamer_repr(snap.get("name"), snap.get("channel_id"), pts)
 
 
 class DiscordNotifier:
@@ -62,35 +68,60 @@ class DiscordNotifier:
     # public API - called from the async loop, never blocks
 
     def startup(self, accounts: list[dict]) -> None:
-        if self._on("notify_startup"):
-            self._enqueue(base.msg_startup(accounts), "start")
+        if not self._on("notify_startup"):
+            return
+        total = len({s for a in accounts for s in a.get("streamer_order", [])})
+        self._enqueue(
+            f"{EMOJI['start']}  Kick Channel Points Miner started - "
+            f"{len(accounts)} account(s), {total} streamers.",
+            "start",
+        )
 
     def shutdown(self, reason: str) -> None:
         if self.enabled:
-            self._enqueue(base.msg_shutdown(reason), "stop")
+            self._enqueue(
+                f"{EMOJI['stop']}  Kick Channel Points Miner stopped - {reason}.",
+                "stop",
+            )
 
     def points_gain(self, alias: str, snap: dict, old: int, new: int) -> None:
         if not self._on("notify_points"):
             return
-        if new - old < max(1, self.cfg.min_points_gain):
+        gain = new - old
+        if gain < max(1, self.cfg.min_points_gain):
             return
-        self._enqueue(base.msg_points(alias, snap, old, new), "gain")
+        self._enqueue(
+            f"{EMOJI['gain']}  +{gain} → {_sr(snap, new)} - Reason: WATCH.", "gain"
+        )
 
     def bonus_claim(self, alias: str, snap: dict) -> None:
         if self._on("notify_points"):
-            self._enqueue(base.msg_claim(alias, snap), "claim")
+            self._enqueue(
+                f"{EMOJI['claim']}  Claiming the bonus for {_sr(snap)}!", "claim"
+            )
 
     def status_change(self, alias: str, snap: dict, action: str) -> None:
-        if self._on("notify_status_change") and action in ("online", "offline"):
-            self._enqueue(base.msg_status(alias, snap, action), action)
+        if not (self._on("notify_status_change") and action in ("online", "offline")):
+            return
+        word = "Online" if action == "online" else "Offline"
+        self._enqueue(f"{EMOJI[action]}  {_sr(snap)} is {word}!", action)
 
     def error(self, alias: str, streamer: str, message: str) -> None:
-        if self._on("notify_errors"):
-            self._enqueue(base.msg_error(alias, streamer, message), "error")
+        if not self._on("notify_errors"):
+            return
+        target = f"{alias}/{streamer}" if streamer else alias
+        self._enqueue(
+            f"{EMOJI['error']}  Error on {target}: {str(message)[:400]}", "error"
+        )
 
     def token_expired(self, alias: str) -> None:
-        if self._on("notify_errors"):
-            self._enqueue(base.msg_token_expired(alias), "error")
+        if not self._on("notify_errors"):
+            return
+        self._enqueue(
+            f"{EMOJI['error']}  Account {alias}: Kick token is invalid or expired "
+            "- update it in the dashboard Config tab.",
+            "error",
+        )
 
     def close(self) -> None:
         if self._worker is not None:
