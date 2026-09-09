@@ -17,12 +17,63 @@ EMOJI = {
 
 
 def streamer_repr(name: str, channel_id, points) -> str:
-    """The Twitch miner's ``Streamer.__repr__`` form."""
+    """The Twitch miner's ``Streamer.__repr__`` form (kept for reference)."""
 
     cid = channel_id if channel_id is not None else "?"
     return (
         f"Streamer(username={name}, channel_id={cid}, "
         f"channel_points={millify(points)})"
+    )
+
+
+# --------------------------------------------------------------------------- #
+# One message vocabulary for every outbound channel (Discord + Telegram).
+# Two lines: the account on top, an emoji + the event below.
+
+
+def account_label(alias: str, snap: dict | None) -> str:
+    user = snap.get("account_username") if isinstance(snap, dict) else None
+    return f"Account {user or alias}"
+
+
+def _name(snap: dict | str) -> str:
+    return snap.get("name") if isinstance(snap, dict) else str(snap)
+
+
+def msg_status(alias: str, snap: dict, action: str) -> str:
+    emoji = EMOJI.get(action, "📡")
+    return f"{account_label(alias, snap)}\n{emoji} {_name(snap)} is {action}"
+
+
+def msg_points(alias: str, snap: dict, old: int, new: int) -> str:
+    return (
+        f"{account_label(alias, snap)}\n"
+        f"{EMOJI['gain']} {_name(snap)} +{new - old:,} → {new:,} Points"
+    )
+
+
+def msg_claim(alias: str, snap: dict) -> str:
+    return f"{account_label(alias, snap)}\n{EMOJI['claim']} {_name(snap)} bonus claimed"
+
+
+def msg_startup(accounts: list[dict]) -> str:
+    total = len({s for a in accounts for s in a.get("streamer_order", [])})
+    return f"{EMOJI['start']} Kick Miner started — {len(accounts)} account(s), {total} streamers"
+
+
+def msg_shutdown(reason: str) -> str:
+    return f"{EMOJI['stop']} Kick Miner stopped — {reason}"
+
+
+def msg_error(alias: str, streamer: str, message: str) -> str:
+    target = f"{alias} · {streamer}" if streamer else alias
+    return f"{EMOJI['error']} {target}\n{str(message)[:400]}"
+
+
+def msg_token_expired(alias: str) -> str:
+    return (
+        f"{EMOJI['error']} Account {alias}\n"
+        "Kick token is invalid or expired — update it in the dashboard Config tab"
     )
 
 

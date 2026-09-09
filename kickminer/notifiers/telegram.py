@@ -14,7 +14,13 @@ from __future__ import annotations
 from loguru import logger
 
 from ..i18n import available_languages, load_language, t
-from .base import EMOJI, summarize_accounts
+from .base import (
+    EMOJI,
+    account_label,
+    msg_points,
+    msg_status,
+    summarize_accounts,
+)
 
 try:
     from telegram import Update
@@ -113,24 +119,14 @@ class TelegramBot:
             except Exception as exc:  # noqa: BLE001
                 logger.debug(f"Telegram send to {chat}: {exc}")
 
-    @staticmethod
-    def _acct(alias: str, snap: dict) -> str:
-        user = snap.get("account_username") if isinstance(snap, dict) else None
-        return f"Account {user or alias}"
+    # message text comes from notifiers.base so Discord and Telegram stay identical
+    _acct = staticmethod(account_label)
 
     async def notify_points(self, alias: str, snap: dict, old: int, new: int) -> None:
-        name = snap.get("name") if isinstance(snap, dict) else snap
-        await self._broadcast(
-            f"{self._acct(alias, snap)}\n"
-            f"{EMOJI['gain']} {name} +{new - old:,} → {new:,} Points"
-        )
+        await self._broadcast(msg_points(alias, snap, old, new))
 
     async def notify_status(self, alias: str, snap: dict, action: str) -> None:
-        name = snap.get("name") if isinstance(snap, dict) else snap
-        emoji = EMOJI.get(action, "📡")
-        await self._broadcast(
-            f"{self._acct(alias, snap)}\n{emoji} {name} is {action}"
-        )
+        await self._broadcast(msg_status(alias, snap, action))
 
     # ------------------------------------------------------------------ #
 

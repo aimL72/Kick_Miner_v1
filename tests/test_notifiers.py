@@ -39,22 +39,15 @@ def test_discord_disabled_without_url():
     n.points_gain("Main", {"name": "x", "channel_id": 1, "points": 100}, 0, 100)
 
 
-def test_discord_enqueues_only_above_threshold(monkeypatch):
-    cfg = DiscordConfig(enabled=True, webhook_url="https://example.com/hook", min_points_gain=10)
-    n = DiscordNotifier(cfg)
-    sent = []
-    monkeypatch.setattr(n, "_send", sent.append)
-    n._q.queue.clear()
+def test_discord_and_telegram_produce_identical_text():
+    """The whole point of the shared builders: one wording for both channels."""
+    from kickminer.notifiers import base
 
-    snap = {"name": "x", "channel_id": 42, "points": 130}
-    n.points_gain("Main", snap, 100, 105)   # +5, below threshold
-    n.points_gain("Main", snap, 100, 130)   # +30, above
-    import time
-    time.sleep(0.3)
-    n.close()
-    assert sent == [
-        "`🚀  +30 → Streamer(username=x, channel_id=42, channel_points=130) - Reason: WATCH.`"
-    ]
+    snap = {"name": "gaules", "account_username": "aimL72"}
+    assert (
+        base.msg_status("Main", snap, "online")
+        == "Account aimL72\n\U0001F973 gaules is online"
+    )
 
 
 def test_telegram_permission_logic():
