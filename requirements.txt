@@ -1,14 +1,12 @@
-# HTTP mit TLS-Impersonation (Cloudflare-Bypass)
-curl_cffi>=0.7.3
-
-# WebSocket mit TLS-Impersonation (Viewer-Verbindung, Phase 2)
-rnet>=2.1.0
+# HTTP + WebSocket with Chrome TLS impersonation (Cloudflare bypass).
+# The async ws_connect(headers=...) API used by viewer_ws needs >= 0.9.
+curl_cffi>=0.9.0
 
 # Logging
 loguru>=0.7.2
 
-# Web-Dashboard (Phase 3)
+# Web dashboard (phase 3)
 flask>=3.0.0
 
-# Telegram-Bot (Phase 4, optional)
+# Telegram bot (phase 4, optional)
 python-telegram-bot>=21.0
