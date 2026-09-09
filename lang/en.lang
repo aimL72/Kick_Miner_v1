@@ -50,6 +50,12 @@
   "streamer_went_offline": "offline",
   "points_gain": "[{alias}] {streamer}: +{gain} (total {total}).",
 
+  "tg_denied": "You are not allowed to run this command.",
+  "tg_not_ready": "Miner is still starting up - try again in a moment.",
+  "tg_restarting": "Restarting the miner...",
+  "tg_language_usage": "Usage: /language <code>. Available: {available}",
+  "tg_help": "Kick Miner commands:\n/status - watched streamers and points\n/balance - point balances\n/accounts - overview of all accounts\n/restart - restart the miner (owner)\n/language <en|de> - change language (owner)",
+
   "yes": "yes",
   "no": "no"
 }
