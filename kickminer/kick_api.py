@@ -125,6 +125,10 @@ class KickApi:
             if points is not None:
                 logger.debug(t("api_points_balance", streamer=slug, amount=points))
                 return int(points)
+            # endpoint answered but carries no balance -> viewer simply has 0
+            if isinstance(data, dict):
+                logger.debug(t("api_points_balance", streamer=slug, amount=0))
+                return 0
 
         # fallback: channel object sometimes carries user.points
         data = self.http.get_json(

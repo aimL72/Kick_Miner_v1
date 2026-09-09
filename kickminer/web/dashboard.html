@@ -182,7 +182,7 @@ function drawChart(data){
   box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
     <line class="axis" x1="${padL}" y1="${padT}" x2="${padL}" y2="${H-padB}"/>
     <line class="axis" x1="${padL}" y1="${H-padB}" x2="${W-padR}" y2="${H-padB}"/>
-    <path class="area" d="${area}"/><path class="line" d="${line}"/>
+    <path class="area" d="${area}"/><path class="line" d="${line}" vector-effect="non-scaling-stroke"/>
     ${yTicks}${xTicks}
   </svg>
   <div style="text-align:center;color:var(--fg2);font-size:12px;margin-top:6px">

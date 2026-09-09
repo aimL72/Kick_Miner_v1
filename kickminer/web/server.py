@@ -15,7 +15,7 @@ from pathlib import Path
 from flask import Flask, jsonify, request
 from loguru import logger
 
-_TEMPLATE = (Path(__file__).parent / "dashboard.html").read_text(encoding="utf-8")
+_TEMPLATE_PATH = Path(__file__).parent / "dashboard.html"
 
 
 def start_dashboard(manager, analytics, port: int = 5000) -> None:
@@ -24,7 +24,7 @@ def start_dashboard(manager, analytics, port: int = 5000) -> None:
 
     @app.route("/")
     def index():
-        return _TEMPLATE
+        return _TEMPLATE_PATH.read_text(encoding="utf-8")
 
     @app.route("/api/data")
     def api_data():
