@@ -64,6 +64,14 @@ class TelegramBot:
         await self._app.updater.start_polling(drop_pending_updates=True)
         logger.info("Telegram bot polling.")
 
+        if str(self.cfg.chat_id).strip():
+            try:
+                await self._app.bot.send_message(
+                    chat_id=self.cfg.chat_id, text="🟢 Kick Miner is online."
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.debug(f"Telegram startup ping failed: {exc}")
+
     async def stop(self) -> None:
         if self._app is None:
             return
