@@ -122,7 +122,7 @@ class TelegramBot:
         name = snap.get("name") if isinstance(snap, dict) else snap
         await self._broadcast(
             f"{self._acct(alias, snap)}\n"
-            f"{EMOJI['gain']} {name} +{new - old:,} → {new:,}"
+            f"{EMOJI['gain']} {name} +{new - old:,} → {new:,} Points"
         )
 
     async def notify_status(self, alias: str, snap: dict, action: str) -> None:
