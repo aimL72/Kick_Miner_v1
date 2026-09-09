@@ -6,211 +6,399 @@
 <title>Kick Miner</title>
 <style>
   :root{
-    --green:#53fc18; --green-dim:rgba(83,252,24,.13); --green-border:rgba(83,252,24,.3);
-    --bg:#0b0e11; --card:#191c21; --card2:#1e2228; --head:#12151a; --border:#2a2e35;
-    --fg:#efeff1; --fg2:#adadb8; --muted:#7a7a85; --red:#f04747; --orange:#faa61a;
+    --bg:#23252f; --panel:#2b2d3e; --panel2:#343e59; --panel3:#3c4467;
+    --border:#3a3d52; --fg:#f5f6fa; --fg2:#c7cad8; --muted:#8b8fa3;
+    --accent:#f9826c; --accent-dim:rgba(249,130,108,.15);
+    --green:#53fc18; --green-dim:rgba(83,252,24,.14);
+    --orange:#faa61a; --red:#f04747;
   }
   *{margin:0;padding:0;box-sizing:border-box}
-  body{font-family:'Inter','Segoe UI',-apple-system,sans-serif;background:var(--bg);color:var(--fg);min-height:100vh}
-  .wrap{max-width:1200px;margin:0 auto;padding:0 20px 40px}
-  header{text-align:center;padding:30px 0 20px}
-  header h1{font-size:32px;font-weight:800;letter-spacing:2px}
+  body{font-family:'Inter','Segoe UI',-apple-system,sans-serif;background:var(--bg);color:var(--fg);min-height:100vh;font-size:14px}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 18px 48px}
+  header{display:flex;align-items:baseline;gap:14px;padding:24px 0 14px;flex-wrap:wrap}
+  header h1{font-size:24px;font-weight:800;letter-spacing:1px}
   header h1 .k{color:var(--green)}
-  header .sub{color:var(--muted);font-size:12px;letter-spacing:1px;text-transform:uppercase;margin-top:4px}
-  .bar{display:flex;justify-content:center;gap:28px;flex-wrap:wrap;background:var(--card);
-       border:1px solid var(--border);border-radius:12px;padding:16px 22px;margin-bottom:22px}
-  .bar .item{text-align:center;min-width:70px}
-  .bar .val{font-size:22px;font-weight:700;color:var(--green)}
-  .bar .lab{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
-  .panel{background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:20px;overflow:hidden}
-  .panel > h2{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--fg2);
-              padding:14px 18px;background:var(--head);border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-  .panel > h2 .alias{color:var(--green)}
-  .panel > h2 .meta{margin-left:auto;font-weight:500;color:var(--fg2);font-size:12px;text-transform:none;letter-spacing:0}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;padding:16px}
-  .s{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:13px 15px;position:relative;overflow:hidden}
-  .s::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--border)}
-  .s.watching::before{background:var(--green)}
-  .s.online::before{background:var(--orange)}
-  .s .top{display:flex;align-items:center;gap:7px;margin-bottom:9px}
-  .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:#555}
-  .s.watching .dot{background:var(--green);box-shadow:0 0 8px rgba(83,252,24,.5);animation:p 2s infinite}
-  .s.online .dot{background:var(--orange)}
-  @keyframes p{0%,100%{opacity:1}50%{opacity:.4}}
-  .s .nm{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .s .nm a{color:var(--fg);text-decoration:none}
-  .s .nm a:hover{color:var(--green)}
-  .s .pr{font-size:10px;background:#2a2e35;color:var(--muted);padding:1px 6px;border-radius:4px;font-weight:600}
-  .s .err{font-size:10px;background:rgba(240,71,71,.15);color:var(--red);padding:1px 6px;border-radius:4px}
-  .s .bot{display:flex;justify-content:space-between;align-items:baseline}
-  .s .pts{font-size:18px;font-weight:700;color:var(--green)}
-  .s .gain{font-size:11px;color:var(--fg2)}
-  .s .st{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
-  .s.watching .st{color:var(--green)}
-  .s.online .st{color:var(--orange)}
-  .chart-head{display:flex;gap:10px;align-items:center;padding:14px 18px;flex-wrap:wrap}
-  select{background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:13px}
-  .chart-box{padding:0 12px 16px}
-  svg{display:block;width:100%;height:260px}
-  .axis{stroke:var(--border);stroke-width:1}
-  .line{fill:none;stroke:var(--green);stroke-width:2}
-  .area{fill:var(--green-dim)}
-  .tick{fill:var(--muted);font-size:10px}
-  .empty{color:var(--muted);text-align:center;padding:40px 20px;font-size:14px}
-  footer{text-align:center;color:var(--muted);font-size:12px;padding-top:8px}
-  .dotlive{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);animation:p 2s infinite;margin-right:6px}
+  header .ver{color:var(--muted);font-size:11px}
+  header .spacer{flex:1}
+  header .clock{color:var(--muted);font-size:12px}
+
+  .stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  .stat{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px 16px;min-width:104px;flex:1}
+  .stat .v{font-size:20px;font-weight:700}
+  .stat .v.accent{color:var(--accent)}
+  .stat .v.green{color:var(--green)}
+  .stat .l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-top:3px}
+
+  .nowwatch{background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--green);
+            border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:var(--fg2)}
+  .nowwatch b{color:var(--green)}
+
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:18px}
+  .tabs button{background:none;border:none;color:var(--muted);padding:10px 16px;font-size:13px;font-weight:600;
+               cursor:pointer;border-bottom:2px solid transparent;letter-spacing:.3px}
+  .tabs button:hover{color:var(--fg2)}
+  .tabs button.on{color:var(--fg);border-bottom-color:var(--accent)}
+
+  .box{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px}
+  .row{display:flex;gap:16px;align-items:flex-start}
+  @media(max-width:820px){.row{flex-direction:column}}
+
+  /* points tab */
+  .slist{width:210px;flex-shrink:0;display:flex;flex-direction:column;gap:4px;max-height:420px;overflow:auto}
+  .slist button{background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--fg2);
+                text-align:left;padding:9px 12px;cursor:pointer;font-size:13px;display:flex;justify-content:space-between;gap:8px}
+  .slist button:hover{background:var(--panel3);color:var(--fg)}
+  .slist button.on{border-color:var(--accent);color:var(--fg);background:var(--panel3)}
+  .slist button .p{color:var(--muted);font-size:11px}
+  .chartwrap{flex:1;min-width:0}
+  .ranges{display:flex;gap:4px;margin-bottom:10px}
+  .ranges button{background:var(--panel2);border:1px solid var(--border);color:var(--fg2);border-radius:7px;
+                 padding:4px 10px;font-size:12px;cursor:pointer}
+  .ranges button.on{border-color:var(--accent);color:var(--fg)}
+  svg.chart{display:block;width:100%;height:300px}
+  .grid line{stroke:var(--border);stroke-width:1}
+  .axis-t{fill:var(--muted);font-size:10px}
+  .cline{fill:none;stroke:var(--accent);stroke-width:2}
+  .carea{fill:url(#g-accent)}
+  .cdot{fill:var(--accent)}
+  .crosshair{stroke:var(--fg2);stroke-width:1;stroke-dasharray:3 3}
+  .chart-cap{text-align:center;color:var(--fg2);font-size:12px;margin-top:8px}
+  .tip{position:absolute;background:var(--panel3);border:1px solid var(--border);border-radius:6px;
+       padding:5px 9px;font-size:12px;pointer-events:none;white-space:nowrap;transform:translate(-50%,-115%);display:none;z-index:5}
+
+  /* account cards (points tab, below) */
+  .acc{margin-top:16px}
+  .acc h3{font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--fg2);margin-bottom:8px;display:flex;gap:10px;flex-wrap:wrap}
+  .acc h3 .alias{color:var(--accent)}
+  .acc h3 .meta{margin-left:auto;color:var(--muted);font-weight:500;text-transform:none;letter-spacing:0}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+  .card{background:var(--panel2);border:1px solid var(--border);border-radius:9px;padding:11px 13px;position:relative;overflow:hidden}
+  .card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--border)}
+  .card.watching::before{background:var(--green)}
+  .card.online::before{background:var(--orange)}
+  .card .t{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+  .card .dot{width:7px;height:7px;border-radius:50%;background:#666;flex-shrink:0}
+  .card.watching .dot{background:var(--green);box-shadow:0 0 7px rgba(83,252,24,.6)}
+  .card.online .dot{background:var(--orange)}
+  .card .nm{font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .card .pr{font-size:9px;background:var(--border);color:var(--muted);padding:1px 5px;border-radius:4px}
+  .card .b{display:flex;justify-content:space-between;align-items:baseline}
+  .card .pts{font-size:16px;font-weight:700;color:var(--green)}
+  .card .g{font-size:11px;color:var(--fg2)}
+  .card .st{font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
+  .card.watching .st{color:var(--green)} .card.online .st{color:var(--orange)}
+
+  /* config tab */
+  .cfgnote{color:var(--orange);font-size:12px;margin-bottom:14px;display:flex;gap:6px;align-items:center}
+  .cfgacc{margin-bottom:16px}
+  .cfgacc .head{display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap}
+  .cfgacc .head .alias{font-weight:700;color:var(--accent)}
+  .limit{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--fg2)}
+  .limit input{width:56px;background:var(--panel2);border:1px solid var(--border);color:var(--fg);border-radius:6px;padding:4px 6px}
+  .addf{display:flex;gap:6px;margin-bottom:10px}
+  .addf input{flex:1;background:var(--panel2);border:1px solid var(--border);color:var(--fg);border-radius:7px;padding:7px 10px;font-size:13px}
+  button.btn{background:var(--accent);border:none;color:#1a1a1a;font-weight:700;border-radius:7px;padding:7px 14px;cursor:pointer;font-size:13px}
+  button.btn.ghost{background:var(--panel2);color:var(--fg2);border:1px solid var(--border)}
+  button.btn.danger{background:none;border:1px solid var(--red);color:var(--red);padding:4px 10px;font-weight:600}
+  button.btn:disabled{opacity:.5;cursor:not-allowed}
+  .sitem{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--border);
+         border-radius:8px;padding:7px 10px;margin-bottom:5px}
+  .sitem .idx{color:var(--muted);font-size:11px;width:18px}
+  .sitem .nm{flex:1;font-size:13px}
+  .sitem .mv{background:var(--panel3);border:1px solid var(--border);color:var(--fg2);border-radius:5px;
+             width:24px;height:24px;cursor:pointer;font-size:12px;line-height:1}
+  .sitem .mv:disabled{opacity:.35;cursor:default}
+  .err{color:var(--red);font-size:12px;margin-top:6px;min-height:16px}
+
+  /* log tab */
+  .logbar{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+  pre.log{background:#1c1d26;border:1px solid var(--border);border-radius:8px;padding:12px;font-size:11.5px;
+          line-height:1.5;height:460px;overflow:auto;white-space:pre-wrap;word-break:break-word;font-family:'JetBrains Mono',Consolas,monospace;color:var(--fg2)}
+  [hidden]{display:none!important}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
     <h1><span class="k">KICK</span> MINER</h1>
-    <div class="sub">Channel Points Farmer</div>
+    <span class="ver" id="ver"></span>
+    <span class="spacer"></span>
+    <span class="clock">updated <span id="clock">--:--:--</span></span>
   </header>
 
-  <div class="bar" id="bar"></div>
+  <div class="stats" id="stats"></div>
+  <div class="nowwatch" id="nowwatch">Not watching anything yet.</div>
 
-  <div class="panel">
-    <h2>Points history</h2>
-    <div class="chart-head">
-      <select id="pick"></select>
-      <select id="range">
-        <option value="6">6 h</option>
-        <option value="24" selected>24 h</option>
-        <option value="72">3 d</option>
-        <option value="168">7 d</option>
-      </select>
-    </div>
-    <div class="chart-box" id="chart"><div class="empty">No data yet.</div></div>
+  <div class="tabs">
+    <button data-tab="points" class="on">Points</button>
+    <button data-tab="config">Config</button>
+    <button data-tab="log">Log</button>
   </div>
 
-  <div id="accounts"></div>
+  <!-- POINTS -->
+  <section id="tab-points">
+    <div class="box">
+      <div class="row">
+        <div class="slist" id="slist"></div>
+        <div class="chartwrap">
+          <div class="ranges" id="ranges">
+            <button data-h="6">6h</button>
+            <button data-h="24" class="on">24h</button>
+            <button data-h="72">3d</button>
+            <button data-h="168">7d</button>
+          </div>
+          <div style="position:relative">
+            <svg class="chart" id="chart" viewBox="0 0 1000 300" preserveAspectRatio="none"></svg>
+            <div class="tip" id="tip"></div>
+          </div>
+          <div class="chart-cap" id="chartcap"></div>
+        </div>
+      </div>
+    </div>
+    <div id="accts"></div>
+  </section>
 
-  <footer><span class="dotlive"></span>Auto-refresh 5 s &middot; last update <span id="upd">--:--:--</span></footer>
+  <!-- CONFIG -->
+  <section id="tab-config" hidden>
+    <div class="box">
+      <div class="cfgnote">⚠ Saving a change restarts the miner (a few seconds of downtime).</div>
+      <div id="cfgbody"></div>
+      <div class="err" id="cfgerr"></div>
+    </div>
+  </section>
+
+  <!-- LOG -->
+  <section id="tab-log" hidden>
+    <div class="box">
+      <div class="logbar">
+        <button class="btn ghost" id="logpause">Pause</button>
+        <span style="color:var(--muted);font-size:12px">tail of logs/kickminer.log · refreshes 3s</span>
+      </div>
+      <pre class="log" id="logbox">loading…</pre>
+    </div>
+  </section>
 </div>
 
 <script>
+const $ = s => document.querySelector(s);
 const fmt = n => (n||0).toLocaleString();
-const el = (t,c,h) => { const e=document.createElement(t); if(c)e.className=c; if(h!=null)e.innerHTML=h; return e; };
+const el = (t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;};
+function millify(n){n=+n||0;const u=['','k','M','B'];let i=0;while(Math.abs(n)>=1000&&i<3){n/=1000;i++;}
+  return (Math.round(n*100)/100).toString().replace(/\.0+$/,'')+u[i];}
 
-function renderBar(d){
-  const bar = document.getElementById('bar');
-  let watching=0, online=0, accounts=(d.accounts||[]).length;
-  for(const a of d.accounts||[]){
-    watching += a.active_count||0;
-    online += (a.active_streamers||[]).length;
-    for(const s of Object.values(a.streamers||{})) if(s.online && !s.watching) online++;
-  }
-  const items = [
-    ['<span class="dotlive"></span>ACTIVE','status'],
-    [accounts,'accounts'],
-    [watching,'watching'],
-    [online,'online'],
-    [fmt(d.grand_total),'total points'],
-    ['+'+fmt(d.session_gain),'this session'],
-  ];
-  bar.innerHTML='';
-  for(const [v,l] of items){
-    const it = el('div','item');
-    it.appendChild(el('div','val',v));
-    it.appendChild(el('div','lab',l));
-    bar.appendChild(it);
-  }
-}
+let TAB='points', PICK=null, RANGE=24, DATA=null, LOGPAUSE=false;
 
-function renderAccounts(d){
-  const box = document.getElementById('accounts');
-  box.innerHTML='';
+/* ---- tabs ---- */
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
+  TAB=b.dataset.tab;
+  document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  for(const t of ['points','config','log']) $('#tab-'+t).hidden = (t!==TAB);
+  if(TAB==='config') loadConfig();
+  if(TAB==='log') pullLog();
+});
+
+/* ---- stats + now-watching + cards ---- */
+function renderData(d){
+  DATA=d;
+  let watching=0, online=0;
+  for(const a of d.accounts||[]) for(const s of Object.values(a.streamers||{})){
+    if(s.watching) watching++; else if(s.online) online++;
+  }
+  $('#stats').innerHTML='';
+  [['ACTIVE','',(d.accounts||[]).length+' acct'],
+   [watching,'green','watching'],
+   [watching+online,'','online'],
+   [millify(d.grand_total),'green','total points'],
+   ['+'+fmt(d.session_gain),'accent','this session']
+  ].forEach(([v,c,l])=>{
+    const s=el('div','stat'); s.appendChild(el('div','v '+c,v)); s.appendChild(el('div','l',l)); $('#stats').appendChild(s);
+  });
+
+  const nw=d.now_watching||[];
+  $('#nowwatch').innerHTML = nw.length
+    ? 'Watching: '+nw.map(w=>`<b>${w.streamer}</b> <span style="color:var(--muted)">(${w.account}, ${fmt(w.points)} pts)</span>`).join(' · ')
+    : 'Not watching anything right now.';
+
+  // streamer picker
+  const names=d.history_streamers||[];
+  const sl=$('#slist');
+  if(sl.dataset.sig!==names.join(',')){
+    sl.dataset.sig=names.join(','); sl.innerHTML='';
+    names.forEach(n=>{
+      const b=el('button',null,`<span>${n}</span><span class="p"></span>`);
+      b.onclick=()=>{PICK=n;markPick();drawChart();};
+      b.dataset.n=n; sl.appendChild(b);
+    });
+    if(!PICK && names.length) PICK=names[0];
+    markPick();
+  }
+  // account cards
+  const box=$('#accts'); box.innerHTML='';
   for(const a of d.accounts||[]){
-    const p = el('div','panel');
-    const order = a.streamer_order || Object.keys(a.streamers||{});
-    const up = a.uptime_seconds||0;
-    const hh = Math.floor(up/3600), mm = Math.floor(up%3600/60);
-    p.appendChild(el('h2',null,
+    const wrap=el('div','acc');
+    const up=a.uptime_seconds||0, h=Math.floor(up/3600), m=Math.floor(up%3600/60);
+    wrap.appendChild(el('h3',null,
       `<span class="alias">${a.alias}</span>`+
-      `<span class="meta">${a.proxy?'proxy':'direct'} &middot; ${a.active_count}/${a.max_concurrent} watching `+
-      `&middot; up ${hh}h ${mm}m &middot; ${fmt(a.total_points)} pts</span>`));
-    const g = el('div','grid');
-    for(const name of order){
-      const s = (a.streamers||{})[name] || {};
-      let cls='s', st='offline';
-      if(s.watching){cls+=' watching'; st='watching';}
-      else if(s.online){cls+=' online'; st='queued';}
-      const card = el('div',cls);
-      card.appendChild(el('div','top',
-        `<span class="dot"></span>`+
-        `<span class="nm"><a href="https://kick.com/${name}" target="_blank" rel="noopener">${name}</a></span>`+
-        `<span class="pr">#${s.priority??'?'}</span>`+
-        (s.errors>0?`<span class="err">${s.errors}</span>`:'')));
-      card.appendChild(el('div','bot',
-        `<span class="pts">${fmt(s.points)} <span class="gain">(+${fmt(s.points_gained)})</span></span>`+
-        `<span class="st">${st}</span>`));
-      g.appendChild(card);
-    }
-    p.appendChild(g);
-    box.appendChild(p);
+      `<span class="meta">${a.proxy?'proxy':'direct'} · ${a.active_count}/${a.max_concurrent} · up ${h}h ${m}m · ${fmt(a.total_points)} pts</span>`));
+    const g=el('div','cards');
+    (a.streamer_order||Object.keys(a.streamers||{})).forEach(n=>{
+      const s=(a.streamers||{})[n]||{};
+      let cls='card',st='offline';
+      if(s.watching){cls+=' watching';st='watching';}
+      else if(s.online){cls+=' online';st='queued';}
+      const c=el('div',cls);
+      c.appendChild(el('div','t',
+        `<span class="dot"></span><span class="nm"><a href="https://kick.com/${n}" target="_blank" rel="noopener">${n}</a></span><span class="pr">#${s.priority??'?'}</span>`));
+      c.appendChild(el('div','b',
+        `<span class="pts">${fmt(s.points)} <span class="g">(+${fmt(s.points_gained)})</span></span><span class="st">${st}</span>`));
+      g.appendChild(c);
+    });
+    wrap.appendChild(g); box.appendChild(wrap);
   }
 }
+function markPick(){document.querySelectorAll('#slist button').forEach(b=>b.classList.toggle('on',b.dataset.n===PICK));}
 
-let picked = null;
-function syncPicker(list){
-  const pick = document.getElementById('pick');
-  const cur = pick.value;
-  if(JSON.stringify([...pick.options].map(o=>o.value)) === JSON.stringify(list)) return;
-  pick.innerHTML='';
-  for(const s of list){ const o=el('option'); o.value=s; o.textContent=s; pick.appendChild(o); }
-  if(list.includes(cur)) pick.value=cur;
-  if(!picked && list.length) picked=pick.value;
+/* ---- chart ---- */
+$('#ranges').querySelectorAll('button').forEach(b=>b.onclick=()=>{
+  RANGE=+b.dataset.h;
+  $('#ranges').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+  drawChart();
+});
+let CHART=[];
+async function drawChart(){
+  const svg=$('#chart'), cap=$('#chartcap');
+  if(!PICK){svg.innerHTML='';cap.textContent='No data yet.';return;}
+  let j; try{ j=await (await fetch(`/api/history?streamer=${encodeURIComponent(PICK)}&hours=${RANGE}`)).json(); }catch(e){return;}
+  const pts=(j.points||[]).map(p=>({t:p.ts*1000,y:p.balance}));
+  CHART=pts;
+  if(pts.length<2){svg.innerHTML='';cap.textContent=`${PICK}: not enough data yet.`;return;}
+  const W=1000,H=300,L=56,R=14,T=14,B=26;
+  const xs=pts.map(p=>p.t), ys=pts.map(p=>p.y);
+  const x0=Math.min(...xs),x1=Math.max(...xs);
+  let y0=Math.min(...ys),y1=Math.max(...ys); if(y0===y1){y0-=1;y1+=1;}
+  const sx=t=>L+(t-x0)/(x1-x0)*(W-L-R);
+  const sy=v=>T+(1-(v-y0)/(y1-y0))*(H-T-B);
+  const line=pts.map((p,i)=>(i?'L':'M')+sx(p.t).toFixed(1)+' '+sy(p.y).toFixed(1)).join(' ');
+  const area=line+` L ${sx(x1).toFixed(1)} ${sy(y0).toFixed(1)} L ${sx(x0).toFixed(1)} ${sy(y0).toFixed(1)} Z`;
+  const tf=t=>{const d=new Date(t);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');};
+  const gy=[0,.25,.5,.75,1].map(f=>{const y=(T+f*(H-T-B)).toFixed(1);return `<line x1="${L}" y1="${y}" x2="${W-R}" y2="${y}"/>`}).join('');
+  const yt=[y0,(y0+y1)/2,y1].map(v=>`<text class="axis-t" x="${L-8}" y="${(sy(v)+3).toFixed(1)}" text-anchor="end">${millify(Math.round(v))}</text>`).join('');
+  const xt=[x0,(x0+x1)/2,x1].map(t=>`<text class="axis-t" x="${sx(t).toFixed(1)}" y="${H-6}" text-anchor="middle">${tf(t)}</text>`).join('');
+  svg.innerHTML=`<defs><linearGradient id="g-accent" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="var(--accent)" stop-opacity="0.35"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
+    <g class="grid">${gy}</g>
+    <path class="carea" d="${area}"/><path class="cline" d="${line}" vector-effect="non-scaling-stroke"/>
+    ${yt}${xt}
+    <line class="crosshair" id="ch" x1="0" y1="${T}" x2="0" y2="${H-B}" style="display:none"/>
+    <circle class="cdot" id="cd" r="3" style="display:none"/>`;
+  cap.textContent=`${PICK} · ${fmt(ys[0])} → ${fmt(ys[ys.length-1])} pts (+${fmt(ys[ys.length-1]-ys[0])})`;
+  svg._sx={x0,x1,L,R,W};
 }
+$('#chart').addEventListener('mousemove',e=>{
+  const svg=$('#chart'); if(!CHART.length||!svg._sx)return;
+  const r=svg.getBoundingClientRect();
+  const px=(e.clientX-r.left)/r.width*1000;
+  const {x0,x1,L,R,W}=svg._sx;
+  const frac=Math.max(0,Math.min(1,(px-L)/(W-L-R)));
+  const tt=x0+frac*(x1-x0);
+  let best=CHART[0]; for(const p of CHART) if(Math.abs(p.t-tt)<Math.abs(best.t-tt)) best=p;
+  const cx=L+(best.t-x0)/(x1-x0)*(W-L-R);
+  const ys=CHART.map(p=>p.y); let y0=Math.min(...ys),y1=Math.max(...ys); if(y0===y1){y0-=1;y1+=1;}
+  const cy=14+(1-(best.y-y0)/(y1-y0))*(300-14-26);
+  const ch=$('#ch'),cd=$('#cd');
+  if(ch){ch.style.display='';ch.setAttribute('x1',cx);ch.setAttribute('x2',cx);}
+  if(cd){cd.style.display='';cd.setAttribute('cx',cx);cd.setAttribute('cy',cy);}
+  const tip=$('#tip');
+  tip.style.display='block';
+  tip.style.left=(cx/1000*r.width)+'px';
+  tip.style.top=(cy/300*r.height)+'px';
+  tip.textContent=`${fmt(best.y)} pts · ${new Date(best.t).toLocaleTimeString()}`;
+});
+$('#chart').addEventListener('mouseleave',()=>{
+  $('#tip').style.display='none';
+  const ch=$('#ch'),cd=$('#cd'); if(ch)ch.style.display='none'; if(cd)cd.style.display='none';
+});
 
-function drawChart(data){
-  const box = document.getElementById('chart');
-  const pts = data.points||[];
-  if(pts.length < 2){ box.innerHTML='<div class="empty">Not enough data yet - come back in a few minutes.</div>'; return; }
-  const W=1000, H=260, padL=54, padR=12, padT=14, padB=24;
-  const xs = pts.map(p=>p.ts), ys = pts.map(p=>p.balance);
-  const x0=Math.min(...xs), x1=Math.max(...xs);
-  let y0=Math.min(...ys), y1=Math.max(...ys);
-  if(y0===y1){ y0-=1; y1+=1; }
-  const sx = t => padL + (t-x0)/(x1-x0)*(W-padL-padR);
-  const sy = v => padT + (1-(v-y0)/(y1-y0))*(H-padT-padB);
-  const line = pts.map((p,i)=>(i?'L':'M')+sx(p.ts).toFixed(1)+' '+sy(p.balance).toFixed(1)).join(' ');
-  const area = line + ` L ${sx(x1).toFixed(1)} ${sy(y0).toFixed(1)} L ${sx(x0).toFixed(1)} ${sy(y0).toFixed(1)} Z`;
-  const tf = t => { const d=new Date(t*1000); return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0'); };
-  const yTicks=[y0,(y0+y1)/2,y1].map(v=>`<text class="tick" x="${padL-8}" y="${(sy(v)+3).toFixed(1)}" text-anchor="end">${fmt(Math.round(v))}</text>`).join('');
-  const xTicks=[x0,(x0+x1)/2,x1].map(t=>`<text class="tick" x="${sx(t).toFixed(1)}" y="${H-6}" text-anchor="middle">${tf(t)}</text>`).join('');
-  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
-    <line class="axis" x1="${padL}" y1="${padT}" x2="${padL}" y2="${H-padB}"/>
-    <line class="axis" x1="${padL}" y1="${H-padB}" x2="${W-padR}" y2="${H-padB}"/>
-    <path class="area" d="${area}"/><path class="line" d="${line}" vector-effect="non-scaling-stroke"/>
-    ${yTicks}${xTicks}
-  </svg>
-  <div style="text-align:center;color:var(--fg2);font-size:12px;margin-top:6px">
-    ${data.streamer} &middot; ${fmt(ys[0])} &rarr; ${fmt(ys[ys.length-1])} pts (+${fmt(ys[ys.length-1]-ys[0])})</div>`;
+/* ---- config editor ---- */
+let CFG=null, BUSY=false;
+async function loadConfig(){
+  try{ CFG=await (await fetch('/api/config')).json(); }catch(e){return;}
+  renderConfig();
 }
-
-async function refreshChart(){
-  if(!picked) return;
-  const hours = document.getElementById('range').value;
+function cfgErr(m){$('#cfgerr').textContent=m||'';}
+async function cfgAction(body){
+  if(BUSY)return; BUSY=true; cfgErr('');
+  document.querySelectorAll('#cfgbody button,#cfgbody input').forEach(x=>x.disabled=true);
   try{
-    const r = await fetch(`/api/history?streamer=${encodeURIComponent(picked)}&hours=${hours}`);
-    drawChart(await r.json());
+    const r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const j=await r.json();
+    if(!r.ok){ cfgErr(j.error||'Edit rejected.'); }
+    else{ CFG=j.config; if(j.restarting) cfgErr('Saved — miner restarting…'); }
+  }catch(e){ cfgErr('Request failed.'); }
+  BUSY=false; renderConfig();
+}
+function renderConfig(){
+  const body=$('#cfgbody'); body.innerHTML='';
+  if(!CFG||!CFG.accounts){body.textContent='No editable accounts.';return;}
+  CFG.accounts.forEach(acc=>{
+    const w=el('div','cfgacc');
+    const head=el('div','head');
+    head.appendChild(el('span','alias',acc.alias));
+    const lim=el('label','limit','max concurrent ');
+    const inp=el('input'); inp.type='number'; inp.min=1; inp.max=50; inp.value=acc.max_concurrent;
+    inp.onchange=()=>cfgAction({action:'set_limit',account:acc.alias,max_concurrent:+inp.value});
+    lim.appendChild(inp); head.appendChild(lim);
+    w.appendChild(head);
+
+    const f=el('form','addf');
+    const ai=el('input'); ai.placeholder='add kick channel…'; ai.maxLength=25; ai.autocomplete='off';
+    const ab=el('button','btn','Add'); ab.type='submit';
+    f.appendChild(ai); f.appendChild(ab);
+    f.onsubmit=e=>{e.preventDefault(); const v=ai.value.trim(); if(v) cfgAction({action:'add',account:acc.alias,streamer:v});};
+    w.appendChild(f);
+
+    acc.streamers.forEach((n,i)=>{
+      const it=el('div','sitem');
+      it.appendChild(el('span','idx','#'+i));
+      it.appendChild(el('span','nm',n));
+      const up=el('button','mv','▲'), dn=el('button','mv','▼');
+      up.type=dn.type='button'; up.disabled=i===0; dn.disabled=i===acc.streamers.length-1;
+      up.onclick=()=>{const a=[...acc.streamers];[a[i-1],a[i]]=[a[i],a[i-1]];cfgAction({action:'reorder',account:acc.alias,streamers:a});};
+      dn.onclick=()=>{const a=[...acc.streamers];[a[i+1],a[i]]=[a[i],a[i+1]];cfgAction({action:'reorder',account:acc.alias,streamers:a});};
+      const rm=el('button','btn danger','Remove'); rm.type='button';
+      rm.onclick=()=>cfgAction({action:'remove',account:acc.alias,streamer:n});
+      it.appendChild(up); it.appendChild(dn); it.appendChild(rm);
+      w.appendChild(it);
+    });
+    if(!acc.streamers.length) w.appendChild(el('div',null,'<span style="color:var(--muted);font-size:12px">No streamers.</span>'));
+    body.appendChild(w);
+  });
+}
+
+/* ---- log ---- */
+$('#logpause').onclick=()=>{LOGPAUSE=!LOGPAUSE;$('#logpause').textContent=LOGPAUSE?'Resume':'Pause';};
+async function pullLog(){
+  if(LOGPAUSE)return;
+  try{
+    const t=await (await fetch('/api/log?bytes=60000')).text();
+    const box=$('#logbox'); const atBottom=box.scrollHeight-box.scrollTop-box.clientHeight<40;
+    box.textContent=t||'(log empty)';
+    if(atBottom) box.scrollTop=box.scrollHeight;
   }catch(e){}
 }
 
+/* ---- loop ---- */
 async function tick(){
   try{
-    const d = await (await fetch('/api/data')).json();
-    renderBar(d); renderAccounts(d); syncPicker(d.history_streamers||[]);
-    document.getElementById('upd').textContent = new Date().toLocaleTimeString();
-    refreshChart();
+    const d=await (await fetch('/api/data')).json();
+    renderData(d);
+    $('#clock').textContent=new Date().toLocaleTimeString();
+    if(TAB==='points') drawChart();
   }catch(e){}
 }
-
-document.getElementById('pick').addEventListener('change', e=>{ picked=e.target.value; refreshChart(); });
-document.getElementById('range').addEventListener('change', refreshChart);
-tick();
-setInterval(tick, 5000);
+tick(); setInterval(tick,5000);
+setInterval(()=>{if(TAB==='log') pullLog();},3000);
 </script>
 </body>
 </html>

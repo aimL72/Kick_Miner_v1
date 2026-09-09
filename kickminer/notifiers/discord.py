@@ -1,8 +1,16 @@
 """Discord webhook notifier.
 
-Fire-and-forget: every send runs on a tiny single-thread pool so the async
-mining loop never blocks on Discord. Honors a 1 req/s self-imposed rate limit
-and retries once on HTTP 429.
+Message format matches the Twitch Channel Points Miner: a plain ``content``
+string wrapped in backticks (a single pair for one-liners, a triple-backtick
+fence for multi-line), posted with a configurable ``username`` / ``avatar_url``.
+No embeds. The event wording mirrors the Twitch miner's log lines:
+
+    +10 -> gaules (230 points) - Reason: WATCH.
+    gaules (230 points) is Online!
+    gaules (230 points) is Offline!
+
+Sends run on a daemon queue-thread so the async mining loop never blocks;
+1 request/second self-limit with a single retry on HTTP 429.
 """
 
 from __future__ import annotations
@@ -11,24 +19,40 @@ import json
 import queue
 import threading
 import time
-from datetime import datetime, timezone
+from textwrap import dedent
 
 from curl_cffi import requests
 from loguru import logger
 
-_COLOR = {
-    "success": 0x34D168,
-    "info": 0x5865F2,
-    "warning": 0xFAA61A,
-    "error": 0xF04747,
-}
+from ..utils import millify
+
+_DEFAULT_USERNAME = "Kick Channel Points Miner"
+
+
+def _fence(message: str) -> str:
+    """Replicate the Twitch miner's backtick-fencing of the webhook content."""
+
+    message = dedent(message).strip()
+    max_run = run = 0
+    for ch in message:
+        run = run + 1 if ch == "`" else 0
+        max_run = max(max_run, run)
+
+    if "\n" in message:
+        fence = "`" * max(3, max_run + 1)
+        return f"{fence}\n{message}\n{fence}"
+    if max_run:
+        fence = "`" * (max_run + 1)
+        return f"{fence} {message} {fence}"
+    return f"`{message}`"
 
 
 class DiscordNotifier:
     def __init__(self, cfg) -> None:
         self.cfg = cfg
         self.enabled = bool(cfg.enabled and cfg.webhook_url)
-        self._q: queue.Queue[dict | None] = queue.Queue()
+        self.username = cfg.username or _DEFAULT_USERNAME
+        self._q: queue.Queue[str | None] = queue.Queue()
         self._worker: threading.Thread | None = None
         self._last_send = 0.0
         if self.enabled:
@@ -39,34 +63,20 @@ class DiscordNotifier:
             logger.info("Discord webhook enabled.")
 
     # ------------------------------------------------------------------ #
-    # public API (called from the async loop – never blocks)
+    # public API - called from the async loop, never blocks
 
     def startup(self, accounts: list[dict]) -> None:
         if not self._on("notify_startup"):
             return
-        fields = []
-        for a in accounts:
-            names = a.get("streamer_order", [])
-            preview = ", ".join(names[:6]) + (f" +{len(names) - 6}" if len(names) > 6 else "")
-            fields.append(
-                {
-                    "name": f"👤 {a.get('alias')}",
-                    "value": f"{'proxy' if a.get('proxy') else 'direct'} · "
-                    f"limit {a.get('max_concurrent')}\n`{preview or '-'}`",
-                    "inline": False,
-                }
-            )
+        total = len({s for a in accounts for s in a.get("streamer_order", [])})
         self._enqueue(
-            "🚀 KickMiner started",
-            f"**{len(accounts)}** account(s) loaded",
-            "success",
-            fields=fields,
+            f"Kick Channel Points Miner started - "
+            f"{len(accounts)} account(s), {total} streamers."
         )
 
     def shutdown(self, reason: str) -> None:
-        if not self.enabled:
-            return
-        self._enqueue("⏹ KickMiner stopping", f"Reason: {reason}", "warning")
+        if self.enabled:
+            self._enqueue(f"Kick Channel Points Miner stopped - {reason}.")
 
     def points_gain(self, alias: str, streamer: str, old: int, new: int) -> None:
         if not self._on("notify_points"):
@@ -75,50 +85,22 @@ class DiscordNotifier:
         if gain < max(1, self.cfg.min_points_gain):
             return
         self._enqueue(
-            "💰 Points earned",
-            None,
-            "success",
-            url=f"https://kick.com/{streamer}",
-            fields=[
-                {"name": "Streamer", "value": streamer, "inline": True},
-                {"name": "Gained", "value": f"+{gain:,}", "inline": True},
-                {"name": "Total", "value": f"{new:,}", "inline": True},
-                {"name": "Account", "value": alias, "inline": True},
-            ],
+            f"+{gain} -> {streamer} ({millify(new)} points) - Reason: WATCH."
         )
 
     def status_change(self, alias: str, streamer: str, priority: int, action: str) -> None:
         if not self._on("notify_status_change"):
             return
-        titles = {
-            "online": ("🟢 Streamer online", "info"),
-            "offline": ("🔴 Streamer offline", "warning"),
-            "watching": ("▶️ Now watching", "success"),
-            "displaced": ("⏸ Displaced by higher priority", "warning"),
-        }
-        title, color = titles.get(action, (f"📡 {action}", "info"))
-        self._enqueue(
-            title,
-            f"[{streamer}](https://kick.com/{streamer})",
-            color,
-            fields=[
-                {"name": "Account", "value": alias, "inline": True},
-                {"name": "Priority", "value": f"#{priority}", "inline": True},
-            ],
-        )
+        if action == "online":
+            self._enqueue(f"{streamer} is Online!")
+        elif action == "offline":
+            self._enqueue(f"{streamer} is Offline!")
 
     def error(self, alias: str, streamer: str, message: str) -> None:
         if not self._on("notify_errors"):
             return
-        self._enqueue(
-            "❌ Error",
-            f"```\n{str(message)[:400]}\n```",
-            "error",
-            fields=[
-                {"name": "Account", "value": alias, "inline": True},
-                {"name": "Streamer", "value": streamer or "-", "inline": True},
-            ],
-        )
+        target = f"{alias}/{streamer}" if streamer else alias
+        self._enqueue(f"Error on {target}: {str(message)[:400]}")
 
     def close(self) -> None:
         if self._worker is not None:
@@ -130,42 +112,31 @@ class DiscordNotifier:
     def _on(self, flag: str) -> bool:
         return self.enabled and bool(getattr(self.cfg, flag, True))
 
-    def _enqueue(self, title, description, color, *, url=None, fields=None) -> None:
-        embed = {
-            "title": title,
-            "color": _COLOR.get(color, _COLOR["info"]),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        }
-        if description:
-            embed["description"] = description
-        if url:
-            embed["url"] = url
-        if fields:
-            embed["fields"] = fields
-        payload = {"embeds": [embed]}
-        if self.cfg.username:
-            payload["username"] = self.cfg.username
-        if self.cfg.avatar_url:
-            payload["avatar_url"] = self.cfg.avatar_url
-        self._q.put(payload)
+    def _enqueue(self, message: str) -> None:
+        self._q.put(_fence(message))
 
     def _run(self) -> None:
         while True:
-            payload = self._q.get()
-            if payload is None:
+            content = self._q.get()
+            if content is None:
                 return
-            self._send(payload)
+            self._send(content)
 
-    def _send(self, payload: dict) -> None:
+    def _payload(self, content: str) -> dict:
+        payload: dict[str, str] = {"content": content, "username": self.username}
+        if self.cfg.avatar_url:
+            payload["avatar_url"] = self.cfg.avatar_url
+        return payload
+
+    def _send(self, content: str) -> None:
         gap = time.time() - self._last_send
         if gap < 1.0:
             time.sleep(1.0 - gap)
+        body = json.dumps(self._payload(content))
+        headers = {"Content-Type": "application/json"}
         try:
             resp = requests.post(
-                self.cfg.webhook_url,
-                data=json.dumps(payload),
-                headers={"Content-Type": "application/json"},
-                timeout=10,
+                self.cfg.webhook_url, data=body, headers=headers, timeout=10
             )
             self._last_send = time.time()
             if resp.status_code == 429:
@@ -176,10 +147,7 @@ class DiscordNotifier:
                     pass
                 time.sleep(min(retry, 15))
                 requests.post(
-                    self.cfg.webhook_url,
-                    data=json.dumps(payload),
-                    headers={"Content-Type": "application/json"},
-                    timeout=10,
+                    self.cfg.webhook_url, data=body, headers=headers, timeout=10
                 )
             elif resp.status_code >= 300:
                 logger.debug(f"Discord webhook HTTP {resp.status_code}")

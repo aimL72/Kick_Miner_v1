@@ -2,7 +2,8 @@
 
 Loads config, starts the multi-account mining supervisor plus the optional
 dashboard / Discord / Telegram integrations, and restarts the supervisor on
-unexpected crashes. Ctrl+C stops cleanly; Telegram /restart cycles it.
+crashes, on a Telegram /restart, or after a dashboard config edit. Ctrl+C
+stops cleanly.
 """
 
 from __future__ import annotations
@@ -22,11 +23,22 @@ from kickminer.logging_setup import setup_logging
 from kickminer.manager import AccountManager
 from kickminer.notifiers import DiscordNotifier, TelegramBot
 
+_CONFIG_PATH = "config.json"
 _RESTART_DELAY = 5
 
 
 class _RestartRequested(Exception):
     """Raised inside the supervisor when a restart was asked for on purpose."""
+
+
+class _ManagerHolder:
+    """Lets the long-lived dashboard thread always see the current manager."""
+
+    def __init__(self) -> None:
+        self.current: AccountManager | None = None
+
+    def __call__(self) -> AccountManager | None:
+        return self.current
 
 
 def _make_callbacks(discord: DiscordNotifier, telegram: TelegramBot):
@@ -44,12 +56,13 @@ def _make_callbacks(discord: DiscordNotifier, telegram: TelegramBot):
 
 
 async def _run_once(
-    cfg,
     analytics: Analytics,
     discord: DiscordNotifier,
     telegram: TelegramBot,
+    holder: _ManagerHolder,
     restart_flag: threading.Event,
 ) -> None:
+    cfg = load_config(_CONFIG_PATH)  # re-read: streamer edits land here
     on_points_gain, on_status_change = _make_callbacks(discord, telegram)
     manager = AccountManager(
         cfg,
@@ -57,6 +70,7 @@ async def _run_once(
         on_points_gain=on_points_gain,
         on_status_change=on_status_change,
     )
+    holder.current = manager
     telegram.bind(manager)
 
     stop = asyncio.Event()
@@ -69,31 +83,17 @@ async def _run_once(
         except (NotImplementedError, RuntimeError):
             pass  # Windows / non-main thread - KeyboardInterrupt handles it
 
-    if cfg.web.enabled:
-        try:
-            from kickminer.web import start_dashboard
-
-            start_dashboard(manager, analytics, cfg.web.port)
-        except Exception as exc:  # noqa: BLE001
-            logger.warning(f"Web dashboard failed to start: {exc}")
-
     await telegram.start()
     discord.startup(
         [
-            {
-                "alias": a.alias,
-                "proxy": a.proxy,
-                "max_concurrent": a.max_concurrent,
-                "streamer_order": a.streamers,
-            }
+            {"alias": a.alias, "streamer_order": a.streamers}
             for a in cfg.accounts
         ]
     )
 
-    async def _wait_restart() -> str:
+    async def _wait_restart() -> None:
         while not restart_flag.is_set():
             await asyncio.sleep(1)
-        return "restart"
 
     run_task = asyncio.create_task(manager.run(), name="manager")
     stop_task = asyncio.create_task(stop.wait(), name="stop")
@@ -108,6 +108,7 @@ async def _run_once(
             task.cancel()
         await manager.stop()
         await telegram.stop()
+        holder.current = None
         if not run_task.done():
             run_task.cancel()
         try:
@@ -125,7 +126,7 @@ async def _run_once(
 def main() -> int:
     setup_logging(debug=False)
     try:
-        cfg = load_config("config.json")
+        cfg = load_config(_CONFIG_PATH)
     except ConfigError as exc:
         logger.error(str(exc))
         return 2
@@ -135,33 +136,47 @@ def main() -> int:
     logger.info(t("app_starting"))
 
     restart_flag = threading.Event()
+    holder = _ManagerHolder()
     analytics = Analytics()
     discord = DiscordNotifier(cfg.discord)
     telegram = TelegramBot(cfg.telegram, request_restart=restart_flag.set)
+
+    if cfg.web.enabled:
+        try:
+            from kickminer.web import start_dashboard
+
+            start_dashboard(
+                holder,
+                analytics,
+                cfg.web.port,
+                config_path=_CONFIG_PATH,
+                on_config_change=restart_flag.set,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(f"Web dashboard failed to start: {exc}")
 
     try:
         while True:
             try:
                 asyncio.run(
-                    _run_once(cfg, analytics, discord, telegram, restart_flag)
+                    _run_once(analytics, discord, telegram, holder, restart_flag)
                 )
             except _RestartRequested:
-                logger.warning(
-                    t("app_restarting", seconds=1, reason="telegram /restart")
-                )
+                logger.warning(t("app_restarting", seconds=1, reason="config change"))
                 time.sleep(1)
                 continue
             except KeyboardInterrupt:
                 logger.info(t("app_stopped_by_user"))
                 discord.shutdown("user stopped")
                 return 0
+            except ConfigError as exc:
+                logger.error(str(exc))
+                return 2
             except Exception as exc:  # noqa: BLE001
                 logger.exception(t("app_fatal", error=str(exc)))
                 discord.error("system", "", str(exc))
 
-            logger.warning(
-                t("app_restarting", seconds=_RESTART_DELAY, reason="crash")
-            )
+            logger.warning(t("app_restarting", seconds=_RESTART_DELAY, reason="crash"))
             try:
                 time.sleep(_RESTART_DELAY)
             except KeyboardInterrupt:

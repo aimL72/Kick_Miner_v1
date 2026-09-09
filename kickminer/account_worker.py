@@ -71,6 +71,7 @@ class AccountWorker:
         self._api = KickApi(self._http)
         self._ws: dict[str, ViewerWebSocket] = {}
         self._running = False
+        self._stopped = False
         self._rebalance_lock = asyncio.Lock()
 
     # ------------------------------------------------------------------ #
@@ -105,9 +106,12 @@ class AccountWorker:
             await self.stop()
 
     async def stop(self) -> None:
+        if self._stopped:
+            return
+        self._stopped = True
         self._running = False
         for name in list(self._ws):
-            await self._stop_watching(name, reason=t("streamer_went_offline"))
+            await self._stop_watching(name, reason="shutdown")
         await asyncio.to_thread(self._http.close)
         logger.info(t("worker_stopped", alias=self.cfg.alias))
 

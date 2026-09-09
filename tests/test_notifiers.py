@@ -42,9 +42,8 @@ def test_discord_disabled_without_url():
 def test_discord_enqueues_only_above_threshold(monkeypatch):
     cfg = DiscordConfig(enabled=True, webhook_url="https://example.com/hook", min_points_gain=10)
     n = DiscordNotifier(cfg)
-    # stop the worker thread from actually sending
     sent = []
-    monkeypatch.setattr(n, "_send", lambda p: sent.append(p))
+    monkeypatch.setattr(n, "_send", sent.append)
     n._q.queue.clear()
 
     n.points_gain("Main", "x", 100, 105)   # +5, below threshold
@@ -52,8 +51,7 @@ def test_discord_enqueues_only_above_threshold(monkeypatch):
     import time
     time.sleep(0.3)
     n.close()
-    assert len(sent) == 1
-    assert sent[0]["embeds"][0]["title"] == "💰 Points earned"
+    assert sent == ["`+30 -> x (130 points) - Reason: WATCH.`"]
 
 
 def test_telegram_permission_logic():
