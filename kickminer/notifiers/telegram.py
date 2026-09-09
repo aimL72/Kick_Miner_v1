@@ -121,15 +121,15 @@ class TelegramBot:
     async def notify_points(self, alias: str, snap: dict, old: int, new: int) -> None:
         name = snap.get("name") if isinstance(snap, dict) else snap
         await self._broadcast(
-            f"{EMOJI['gain']} {self._acct(alias, snap)}\n"
-            f"Streamer {name} +{new - old:,} → {new:,}"
+            f"{self._acct(alias, snap)}\n"
+            f"{EMOJI['gain']} {name} +{new - old:,} → {new:,}"
         )
 
     async def notify_status(self, alias: str, snap: dict, action: str) -> None:
         name = snap.get("name") if isinstance(snap, dict) else snap
         emoji = EMOJI.get(action, "📡")
         await self._broadcast(
-            f"{emoji} {self._acct(alias, snap)}\nStreamer {name} is {action}"
+            f"{self._acct(alias, snap)}\n{emoji} {name} is {action}"
         )
 
     # ------------------------------------------------------------------ #

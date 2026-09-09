@@ -84,9 +84,9 @@ def test_telegram_push_format():
     asyncio.run(bot.notify_status("Main Account", snap, "online"))
     asyncio.run(bot.notify_status("Main Account", snap, "offline"))
     asyncio.run(bot.notify_points("Main Account", snap, 3400, 3412))
-    assert sent[0] == "🥳 Account aimL72\nStreamer xqc is online"
-    assert sent[1] == "😴 Account aimL72\nStreamer xqc is offline"
-    assert sent[2] == "🚀 Account aimL72\nStreamer xqc +12 → 3,412"
+    assert sent[0] == "Account aimL72\n🥳 xqc is online"
+    assert sent[1] == "Account aimL72\n😴 xqc is offline"
+    assert sent[2] == "Account aimL72\n🚀 xqc +12 → 3,412"
 
 
 def test_telegram_acct_falls_back_to_alias():
