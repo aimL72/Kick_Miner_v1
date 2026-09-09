@@ -246,6 +246,13 @@ class AccountWorker:
                     )
                 self._ws.pop(streamer, None)
 
+            async def _fresh_token(
+                streamer: str = name, cid: int = st.channel_id, uid: int = st.user_id
+            ) -> str | None:
+                return await asyncio.to_thread(
+                    self._api.get_viewer_ws_token, streamer, cid, uid
+                )
+
             ws = ViewerWebSocket(
                 ws_token=ws_token,
                 channel_id=st.channel_id,
@@ -253,6 +260,7 @@ class AccountWorker:
                 label=f"{self.cfg.alias}/{name}",
                 proxy=self.cfg.proxy,
                 on_closed=_on_closed,
+                token_provider=_fresh_token,
             )
             self._ws[name] = ws
             st.is_watching = True

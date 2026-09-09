@@ -40,8 +40,13 @@ class ViewerWebSocket:
         proxy: str | None = None,
         impersonate: str = "chrome124",
         on_closed: Callable[[], Awaitable[None]] | None = None,
+        token_provider: Callable[[], Awaitable[str | None]] | None = None,
     ) -> None:
         self.ws_token = ws_token
+        # viewer WS tokens are short-lived (~15-30 min); on every (re)connect
+        # after the first, fetch a fresh one so a mid-session drop can recover.
+        self._token_provider = token_provider
+        self._first_connect = True
         self.channel_id = int(channel_id)
         self.stream_id = int(stream_id or 0)
         self.label = label or str(channel_id)
@@ -93,6 +98,14 @@ class ViewerWebSocket:
             "Origin": "https://kick.com",
             "Referer": "https://kick.com/",
         }
+        if not self._first_connect and self._token_provider is not None:
+            fresh = await self._token_provider()
+            if fresh:
+                self.ws_token = fresh
+            else:
+                logger.warning(t("ws_error", error="could not refresh WS token"))
+        self._first_connect = False
+
         url = f"{WS_CONNECT_URL}?token={self.ws_token}"
         try:
             self._session = AsyncSession(
