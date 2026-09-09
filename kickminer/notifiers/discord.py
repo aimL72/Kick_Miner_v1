@@ -135,6 +135,15 @@ class DiscordNotifier:
         target = f"{alias}/{streamer}" if streamer else alias
         self._enqueue(_EMOJI["error"] + f"  Error on {target}: {str(message)[:400]}")
 
+    def token_expired(self, alias: str) -> None:
+        if not self._on("notify_errors"):
+            return
+        self._enqueue(
+            _EMOJI["error"]
+            + f"  Account {alias}: Kick token is invalid or expired - "
+            "update it in the dashboard Config tab."
+        )
+
     def close(self) -> None:
         if self._worker is not None:
             self._q.put(None)

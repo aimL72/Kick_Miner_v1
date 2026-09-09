@@ -49,6 +49,7 @@ class AccountWorker:
         on_points_gain=None,
         on_status_change=None,
         analytics=None,
+        discord=None,
     ) -> None:
         self.cfg = cfg
         self.check_interval = check_interval
@@ -57,6 +58,8 @@ class AccountWorker:
         self._on_points_gain = on_points_gain
         self._on_status_change = on_status_change
         self._analytics = analytics
+        self._discord = discord
+        self._token_check_counter = 0
 
         self.state = AccountState(
             alias=cfg.alias,
@@ -88,6 +91,7 @@ class AccountWorker:
             )
         )
         try:
+            await self._check_token()
             await self._check_all_online()
             await self._rebalance()
             while self._running:
@@ -96,6 +100,10 @@ class AccountWorker:
                         self.check_interval * 0.8, self.check_interval * 1.2
                     )
                 )
+                self._token_check_counter += 1
+                if self._token_check_counter >= 5:  # ~ every 5 online sweeps
+                    self._token_check_counter = 0
+                    await self._check_token()
                 await self._check_all_online()
                 await self._rebalance()
         except asyncio.CancelledError:
@@ -289,6 +297,29 @@ class AccountWorker:
             logger.warning(f"[{self.cfg.alias}] points loop {name}: {exc}")
 
     # ------------------------------------------------------------------ #
+
+    async def _check_token(self) -> None:
+        try:
+            ident = await asyncio.to_thread(self._api.token_identity)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug(f"[{self.cfg.alias}] token check failed: {exc}")
+            return
+        was = self.state.token_valid
+        self.state.token_valid = ident.valid
+        self.state.token_username = ident.username
+        self.state.token_checked_at = datetime.now(timezone.utc)
+
+        if ident.valid and was is not True:
+            logger.info(
+                f"[{self.cfg.alias}] Kick token OK (user: {ident.username})."
+            )
+        elif not ident.valid and was is not False:
+            logger.error(
+                f"[{self.cfg.alias}] Kick token is invalid or expired - "
+                f"update it in the dashboard Config tab."
+            )
+            if self._discord is not None:
+                self._discord.token_expired(self.cfg.alias)
 
     def _record_points(self, name: str, balance: int) -> None:
         if self._analytics is not None:

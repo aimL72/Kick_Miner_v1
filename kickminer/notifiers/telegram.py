@@ -110,6 +110,20 @@ class TelegramBot:
 
     async def _guard(self, update: "Update", owner_only: bool) -> bool:
         uid = update.effective_user.id if update.effective_user else 0
+
+        # First contact with no owner configured -> claim this user as owner
+        # (session only; tell them to persist it in config.json).
+        if not str(self.cfg.chat_id).strip() and uid:
+            self.cfg.chat_id = str(uid)
+            logger.warning(
+                f"Telegram: no owner configured - claiming user {uid} as owner "
+                f"for this session. Put \"chat_id\": \"{uid}\" in config.json to keep it."
+            )
+            await update.message.reply_text(
+                f"You are now the owner for this session (id {uid}).\n"
+                f'Add  "chat_id": "{uid}"  to config.json → Telegram to make it permanent.'
+            )
+
         ok = self._is_owner(uid) if owner_only else self._is_allowed(uid)
         if not ok:
             await update.message.reply_text(t("tg_denied"))

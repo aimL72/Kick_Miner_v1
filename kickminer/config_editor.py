@@ -16,6 +16,7 @@ import threading
 from pathlib import Path
 
 STREAMER_RE = re.compile(r"^[a-z0-9_]{1,25}$")
+TOKEN_RE = re.compile(r"^\d+\|[A-Za-z0-9]{16,}$")
 _LOCK = threading.Lock()
 
 
@@ -44,6 +45,14 @@ def _find(raw: dict, alias: str) -> dict:
     raise ConfigEditError(f"Unknown account: {alias!r}")
 
 
+def _token_hint(token: str) -> str:
+    token = str(token or "")
+    if "|" not in token:
+        return "…" + token[-4:] if token else ""
+    prefix, _, secret = token.partition("|")
+    return f"{prefix}|…{secret[-4:]}" if secret else f"{prefix}|…"
+
+
 def read_editable(path: str | Path) -> dict:
     raw = json.loads(Path(path).read_text(encoding="utf-8"))
     out = []
@@ -53,12 +62,15 @@ def read_editable(path: str | Path) -> dict:
             for s in acc.get("streamers", [])
             if str(s).strip()
         ]
+        token = str(acc.get("token") or "")
         out.append(
             {
                 "alias": acc.get("alias"),
                 "streamers": streamers,
                 "max_concurrent": int(acc.get("max_concurrent", 2) or 2),
                 "proxy": bool(acc.get("proxy")),
+                "has_token": bool(token),
+                "token_hint": _token_hint(token),  # never the full secret
             }
         )
     return {"accounts": out}
@@ -102,6 +114,15 @@ def apply_action(path: str | Path, action: dict) -> dict:
             if not 1 <= limit <= 50:
                 raise ConfigEditError("max_concurrent must be between 1 and 50.")
             acc["max_concurrent"] = limit
+
+        elif kind == "set_token":
+            tok = str(action.get("token") or "").strip()
+            if not TOKEN_RE.match(tok):
+                raise ConfigEditError(
+                    "That does not look like a Kick bearer token "
+                    "(expected '123456|abcdef...')."
+                )
+            acc["token"] = tok
 
         else:
             raise ConfigEditError(f"Unknown action: {kind!r}")

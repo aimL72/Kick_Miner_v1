@@ -71,6 +71,10 @@ class AccountState:
     order: list[str] = field(default_factory=list)
     started_at: datetime = field(default_factory=_now)
 
+    token_valid: bool | None = None       # None = not checked yet
+    token_username: str | None = None
+    token_checked_at: datetime | None = None
+
     @property
     def watching(self) -> list[str]:
         return [s.name for s in self.streamers.values() if s.is_watching]
@@ -93,6 +97,11 @@ class AccountState:
             "streamer_order": self.order,
             "uptime_seconds": int((_now() - self.started_at).total_seconds()),
             "total_points": self.total_points,
+            "token_valid": self.token_valid,
+            "token_username": self.token_username,
+            "token_checked_at": (
+                self.token_checked_at.isoformat() if self.token_checked_at else None
+            ),
             "streamers": {
                 name: st.snapshot() for name, st in self.streamers.items()
             },

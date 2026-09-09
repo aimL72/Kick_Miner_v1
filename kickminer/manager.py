@@ -21,6 +21,7 @@ class AccountManager:
         on_points_gain=None,
         on_status_change=None,
         analytics=None,
+        discord=None,
     ):
         self.config = config
         self.analytics = analytics
@@ -33,6 +34,7 @@ class AccountManager:
                 on_points_gain=on_points_gain,
                 on_status_change=on_status_change,
                 analytics=analytics,
+                discord=discord,
             )
             for acc in config.accounts
         ]

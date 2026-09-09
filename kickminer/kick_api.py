@@ -22,6 +22,7 @@ from .http_client import KickHttpClient, safe_get
 from .i18n import t
 
 API_BASE = "https://kick.com/api/v2"
+USER_URL = "https://kick.com/api/v1/user"
 WS_TOKEN_URL = "https://websockets.kick.com/viewer/v1/token"
 
 
@@ -34,9 +35,29 @@ class ChannelInfo:
     stream_id: int | None = None
 
 
+@dataclass(slots=True)
+class TokenIdentity:
+    valid: bool
+    username: str | None = None
+
+
 class KickApi:
     def __init__(self, http: KickHttpClient) -> None:
         self.http = http
+
+    # ------------------------------------------------------------------ #
+
+    def token_identity(self) -> TokenIdentity:
+        """Check the account's bearer token via the authenticated user endpoint.
+
+        Kick returns ``{}`` (200) for a missing/expired token and the full user
+        object when it is valid.
+        """
+
+        data = self.http.get_json(USER_URL)
+        if isinstance(data, dict) and data.get("id"):
+            return TokenIdentity(valid=True, username=data.get("username"))
+        return TokenIdentity(valid=False)
 
     # ------------------------------------------------------------------ #
 

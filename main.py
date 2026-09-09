@@ -69,6 +69,7 @@ async def _run_once(
         analytics=analytics,
         on_points_gain=on_points_gain,
         on_status_change=on_status_change,
+        discord=discord,
     )
     holder.current = manager
     telegram.bind(manager)
