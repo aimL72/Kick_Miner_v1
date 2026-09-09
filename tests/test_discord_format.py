@@ -46,8 +46,8 @@ def test_discord_sends_plain_content_no_backticks(monkeypatch):
     time.sleep(0.3)
     n.close()
     assert captured == [
-        "Account aimL72\n🥳 gaules is online",
-        "Account aimL72\n🚀 gaules +12 → 3,412 Points",
+        ">>> Account aimL72\n🥳 gaules is online",
+        ">>> Account aimL72\n🚀 gaules +12 → 3,412 Points",
     ]
     assert "`" not in captured[0]
 
@@ -64,4 +64,4 @@ def test_discord_respects_min_points_gain(monkeypatch):
 
     time.sleep(0.3)
     n.close()
-    assert captured == ["Account aimL72\n🚀 gaules +30 → 130 Points"]
+    assert captured == [">>> Account aimL72\n🚀 gaules +30 → 130 Points"]

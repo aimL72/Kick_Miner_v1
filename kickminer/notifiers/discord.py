@@ -1,11 +1,11 @@
 """Discord webhook notifier.
 
 Sends the same two-line messages as the Telegram bot (one shared vocabulary in
-``notifiers.base``), as plain webhook ``content`` - no embeds, no backtick
-fence:
+``notifiers.base``), as plain webhook ``content`` - no embeds - wrapped in a
+Discord block quote (``>>> ``):
 
-    🟢 Kick Miner started — 2 account(s), 5 streamers
-    Account aimL72
+    >>> 🟢 Kick Miner started — 2 account(s), 5 streamers
+    >>> Account aimL72
     🥳 gaules is online
     Account aimL72
     😴 gaules is offline
@@ -92,7 +92,8 @@ class DiscordNotifier:
         return self.enabled and bool(getattr(self.cfg, flag, True))
 
     def _enqueue(self, message: str) -> None:
-        self._q.put(message)
+        # ">>> " renders the whole message as a Discord block quote
+        self._q.put(">>> " + message)
 
     def _run(self) -> None:
         while True:
