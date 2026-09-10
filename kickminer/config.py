@@ -46,8 +46,7 @@ class DiscordConfig:
 class TelegramConfig:
     enabled: bool = False
     bot_token: str = ""
-    chat_id: str = ""
-    allowed_users: list[int] = field(default_factory=list)
+    chat_id: str = ""  # the single owner
     notify_points: bool = True
     notify_status_change: bool = True
     notify_errors: bool = True
@@ -180,13 +179,10 @@ def _parse_discord(raw: dict[str, Any]) -> DiscordConfig:
 
 def _parse_telegram(raw: dict[str, Any]) -> TelegramConfig:
     tg = raw.get("Telegram", {}) or {}
-    users = tg.get("allowed_users", [])
-    allowed = [int(u) for u in users if str(u).strip().lstrip("-").isdigit()]
     cfg = TelegramConfig(
         enabled=_as_bool(tg.get("enabled")),
         bot_token=str(tg.get("bot_token", "")).strip(),
         chat_id=str(tg.get("chat_id", "")).strip(),
-        allowed_users=allowed,
         notify_points=_as_bool(tg.get("notify_points"), True),
         notify_status_change=_as_bool(tg.get("notify_status_change"), True),
         notify_errors=_as_bool(tg.get("notify_errors"), True),

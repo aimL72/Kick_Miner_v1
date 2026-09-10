@@ -187,6 +187,7 @@ def apply_action(path: str | Path, action: dict) -> dict:
                     raise ConfigEditError("min_points_gain must be a number.") from None
 
             if kind == "set_telegram":
+                tgt.pop("allowed_users", None)  # single-user only now
                 if str(action.get("bot_token") or "").strip():
                     tok = str(action["bot_token"]).strip()
                     if not TELEGRAM_TOKEN_RE.match(tok):

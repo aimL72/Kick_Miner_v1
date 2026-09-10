@@ -32,8 +32,8 @@ either doesn't have them or exposes no usable interface for them.
   miner automatically.
 * **Points history** in `data/analytics.sqlite3` (30-day retention).
 * **Discord webhook** – exact Twitch-miner message format.
-* **Telegram bot** – `/status` `/balance` `/accounts` for everyone allowed,
-  `/restart` `/language` for the owner.
+* **Telegram bot** – `/status` `/balance` `/accounts` `/restart` `/language`,
+  usable only by the one configured `chat_id`.
 * **Auto-restart** on crashes, on Telegram `/restart`, and after a dashboard
   config edit. Clean `Ctrl+C` shutdown.
 * **Self-test** – `python -m kickminer.selfcheck <channel> --account "<alias>"`
@@ -79,7 +79,7 @@ Tokens expire; if the points check starts failing, grab a fresh one.
 | `Discord.enabled` / `.webhook_url` / `.username` / `.avatar_url` | webhook notifier |
 | `Discord.notify_points` / `notify_status_change` / `notify_errors` / `notify_startup` | per-event switches |
 | `Discord.min_points_gain` | suppress point gains smaller than this |
-| `Telegram.enabled` / `.bot_token` / `.chat_id` / `.allowed_users` | control bot (owner = `chat_id`) |
+| `Telegram.enabled` / `.bot_token` / `.chat_id` | control bot - `chat_id` is the single allowed user |
 | `Proxy.enabled` / `.url` | global proxy (`socks5://`, `http://`) |
 | `Accounts[]` | one entry per Kick account |
 | `Accounts[].alias` | display name (used by the dashboard and Telegram) |
@@ -138,7 +138,6 @@ push to `main`.
    `Telegram.bot_token`.
 2. Message [@userinfobot](https://t.me/userinfobot) to get your numeric user id,
    put it in `Telegram.chat_id` (that makes you the owner).
-3. Add any read-only viewers' ids to `Telegram.allowed_users`.
 
 ## Development
 

@@ -51,11 +51,10 @@ def test_discord_and_telegram_produce_identical_text():
 
 
 def test_telegram_permission_logic():
-    bot = TelegramBot(TelegramConfig(enabled=False, chat_id="111", allowed_users=[222]))
+    bot = TelegramBot(TelegramConfig(enabled=False, chat_id="111"))
     assert bot._is_owner(111) is True
+    assert bot._is_owner("111") is True
     assert bot._is_owner(222) is False
-    assert bot._is_allowed(222) is True
-    assert bot._is_allowed(333) is False
 
 
 def test_telegram_disabled_when_no_token():

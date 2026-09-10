@@ -1,12 +1,10 @@
 """Telegram control bot.
 
 Runs inside the miner's own asyncio loop (python-telegram-bot v21+ is async).
-Owner = ``chat_id``; guests = ``allowed_users`` (read-only commands only).
+Single user: ``chat_id`` is the only account that may use it. If ``chat_id``
+is empty the first person to message the bot claims it for the session.
 
-Commands
-    /start /help /status /balance /accounts   everyone allowed
-    /restart                                   owner only
-    /language <en|de>                          owner only
+Commands: /start /help /status /balance /accounts /restart /language <en|de>
 """
 
 from __future__ import annotations
@@ -112,17 +110,16 @@ class TelegramBot:
             self._app = None
 
     # ------------------------------------------------------------------ #
-    # push notifications (best-effort, owner + guests)
+    # push notifications to the single owner (best-effort)
 
     async def _broadcast(self, text: str) -> None:
-        if self._app is None:
+        chat = str(self.cfg.chat_id).strip()
+        if self._app is None or not chat:
             return
-        recipients = {str(self.cfg.chat_id)} | {str(u) for u in self.cfg.allowed_users}
-        for chat in filter(None, recipients):
-            try:
-                await self._app.bot.send_message(chat_id=chat, text=text)
-            except Exception as exc:  # noqa: BLE001
-                logger.debug(f"Telegram send to {chat}: {exc}")
+        try:
+            await self._app.bot.send_message(chat_id=chat, text=text)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug(f"Telegram send to {chat}: {exc}")
 
     # message text comes from notifiers.base so Discord and Telegram stay identical
     _acct = staticmethod(account_label)
@@ -151,10 +148,7 @@ class TelegramBot:
     def _is_owner(self, uid: int) -> bool:
         return str(uid) == str(self.cfg.chat_id)
 
-    def _is_allowed(self, uid: int) -> bool:
-        return self._is_owner(uid) or uid in self.cfg.allowed_users
-
-    async def _guard(self, update: "Update", owner_only: bool) -> bool:
+    async def _guard(self, update: "Update") -> bool:
         uid = update.effective_user.id if update.effective_user else 0
 
         # First contact with no owner configured -> claim this user as owner
@@ -163,35 +157,35 @@ class TelegramBot:
             self.cfg.chat_id = str(uid)
             logger.warning(
                 f"Telegram: no owner configured - claiming user {uid} as owner "
-                f"for this session. Put \"chat_id\": \"{uid}\" in config.json to keep it."
+                f"for this session. Set it in the dashboard Notifications tab to keep it."
             )
             await update.message.reply_text(
                 f"You are now the owner for this session (id {uid}).\n"
-                f'Add  "chat_id": "{uid}"  to config.json → Telegram to make it permanent.'
+                "Enter this id in the dashboard Notifications tab to make it permanent."
             )
 
-        ok = self._is_owner(uid) if owner_only else self._is_allowed(uid)
-        if not ok:
+        if not self._is_owner(uid):
             await update.message.reply_text(t("tg_denied"))
-        return ok
+            return False
+        return True
 
     async def _cmd_help(self, update, _ctx) -> None:
-        if not await self._guard(update, owner_only=False):
+        if not await self._guard(update):
             return
         await update.message.reply_text(t("tg_help"))
 
     async def _cmd_status(self, update, _ctx) -> None:
-        if not await self._guard(update, owner_only=False):
+        if not await self._guard(update):
             return
         await self._send_overview(update)
 
     async def _cmd_accounts(self, update, _ctx) -> None:
-        if not await self._guard(update, owner_only=False):
+        if not await self._guard(update):
             return
         await self._send_overview(update)
 
     async def _cmd_balance(self, update, _ctx) -> None:
-        if not await self._guard(update, owner_only=False):
+        if not await self._guard(update):
             return
         await self._send_overview(update)
 
@@ -203,14 +197,14 @@ class TelegramBot:
         await update.message.reply_text(f"```\n{text}\n```", parse_mode=ParseMode.MARKDOWN)
 
     async def _cmd_restart(self, update, _ctx) -> None:
-        if not await self._guard(update, owner_only=True):
+        if not await self._guard(update):
             return
         await update.message.reply_text(t("tg_restarting"))
         if self._request_restart is not None:
             self._request_restart()
 
     async def _cmd_language(self, update, ctx) -> None:
-        if not await self._guard(update, owner_only=True):
+        if not await self._guard(update):
             return
         args = ctx.args or []
         if not args or args[0].lower() not in available_languages():

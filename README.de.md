@@ -33,8 +33,8 @@ Schnittstelle dafür.
   Miner automatisch neu.
 * **Punkteverlauf** in `data/analytics.sqlite3` (30 Tage Aufbewahrung).
 * **Discord-Webhook** – exakt das Nachrichtenformat des Twitch-Miners.
-* **Telegram-Bot** – `/status` `/balance` `/accounts` für alle erlaubten Nutzer,
-  `/restart` `/language` nur für den Owner.
+* **Telegram-Bot** – `/status` `/balance` `/accounts` `/restart` `/language`,
+  nur für die eine konfigurierte `chat_id`.
 * **Auto-Neustart** bei Abstürzen, bei Telegram `/restart` und nach einer
   Konfig-Änderung im Dashboard. Sauberes Beenden mit `Strg+C`.
 * **Selbsttest** – `python -m kickminer.selfcheck <kanal> --account "<alias>"`
@@ -82,7 +82,7 @@ Schlüssel in `config.json` (vollständiges Beispiel: `config.example.json`):
 | `Discord.enabled` / `.webhook_url` / `.username` / `.avatar_url` | Webhook-Benachrichtigungen |
 | `Discord.notify_points` / `notify_status_change` / `notify_errors` / `notify_startup` | einzelne Ereignis-Schalter |
 | `Discord.min_points_gain` | Punkte-Zugänge kleiner als dieser Wert unterdrücken |
-| `Telegram.enabled` / `.bot_token` / `.chat_id` / `.allowed_users` | Steuer-Bot (Owner = `chat_id`) |
+| `Telegram.enabled` / `.bot_token` / `.chat_id` | Steuer-Bot - `chat_id` ist der einzige berechtigte Nutzer |
 | `Proxy.enabled` / `.url` | globaler Proxy (`socks5://`, `http://`) |
 | `Accounts[]` | ein Eintrag pro Kick-Account |
 | `Accounts[].alias` | Anzeigename (Dashboard, Telegram) |
@@ -142,7 +142,6 @@ Push auf `main` neu gebaut.
 2. [@userinfobot](https://t.me/userinfobot) anschreiben, um die eigene
    numerische User-ID zu bekommen, diese in `Telegram.chat_id` eintragen
    (damit bist du der Owner).
-3. IDs von reinen Zuschauern in `Telegram.allowed_users` ergänzen.
 
 ## Entwicklung
 
