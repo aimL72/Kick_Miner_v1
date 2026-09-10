@@ -22,6 +22,7 @@ class AccountManager:
         on_status_change=None,
         analytics=None,
         discord=None,
+        telegram=None,
     ):
         self.config = config
         self.analytics = analytics
@@ -36,6 +37,7 @@ class AccountManager:
                 on_status_change=on_status_change,
                 analytics=analytics,
                 discord=discord,
+                telegram=telegram,
             )
             for acc in config.accounts
         ]

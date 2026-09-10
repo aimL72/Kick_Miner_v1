@@ -63,10 +63,11 @@ def test_telegram_disabled_when_no_token():
     assert bot.enabled is False
 
 
-def test_telegram_push_format():
+def test_telegram_push_format(monkeypatch):
     import asyncio
 
-    bot = TelegramBot(TelegramConfig(enabled=False, chat_id="1"))
+    bot = TelegramBot(TelegramConfig(enabled=False, chat_id="1", min_points_gain=1))
+    monkeypatch.setattr(bot, "enabled", True)  # bypass the token requirement
     sent = []
 
     async def fake(text):
@@ -80,6 +81,25 @@ def test_telegram_push_format():
     assert sent[0] == "Account aimL72\n🥳 xqc is online"
     assert sent[1] == "Account aimL72\n😴 xqc is offline"
     assert sent[2] == "Account aimL72\n🚀 xqc +12 → 3,412 Points"
+
+
+def test_telegram_push_respects_flags(monkeypatch):
+    import asyncio
+
+    bot = TelegramBot(TelegramConfig(
+        enabled=False, notify_points=False, notify_status_change=True, min_points_gain=50
+    ))
+    monkeypatch.setattr(bot, "enabled", True)
+    sent = []
+    bot._broadcast = lambda t: sent.append(t) or _noop()
+
+    async def _noop():
+        return None
+
+    snap = {"name": "x", "account_username": "u"}
+    asyncio.run(bot.notify_points("A", snap, 0, 10))     # notify_points off -> nothing
+    asyncio.run(bot.notify_status("A", snap, "online"))  # on
+    assert sent == ["Account u\n🥳 x is online"]
 
 
 def test_telegram_acct_falls_back_to_alias():

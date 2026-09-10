@@ -48,6 +48,11 @@ class TelegramConfig:
     bot_token: str = ""
     chat_id: str = ""
     allowed_users: list[int] = field(default_factory=list)
+    notify_points: bool = True
+    notify_status_change: bool = True
+    notify_errors: bool = True
+    notify_startup: bool = True
+    min_points_gain: int = 1
 
 
 @dataclass(slots=True)
@@ -159,7 +164,7 @@ def _parse_discord(raw: dict[str, Any]) -> DiscordConfig:
     cfg = DiscordConfig(
         enabled=_as_bool(d.get("enabled")),
         webhook_url=str(d.get("webhook_url", "")).strip(),
-        username=str(d.get("username", "KickMiner")),
+        username=str(d.get("username", "")),
         avatar_url=str(d.get("avatar_url", "")),
         notify_points=_as_bool(d.get("notify_points"), True),
         notify_status_change=_as_bool(d.get("notify_status_change"), True),
@@ -182,6 +187,11 @@ def _parse_telegram(raw: dict[str, Any]) -> TelegramConfig:
         bot_token=str(tg.get("bot_token", "")).strip(),
         chat_id=str(tg.get("chat_id", "")).strip(),
         allowed_users=allowed,
+        notify_points=_as_bool(tg.get("notify_points"), True),
+        notify_status_change=_as_bool(tg.get("notify_status_change"), True),
+        notify_errors=_as_bool(tg.get("notify_errors"), True),
+        notify_startup=_as_bool(tg.get("notify_startup"), True),
+        min_points_gain=int(tg.get("min_points_gain", 1) or 0),
     )
     if cfg.enabled and not cfg.bot_token:
         logger.warning("Telegram enabled but bot_token missing - disabling Telegram.")

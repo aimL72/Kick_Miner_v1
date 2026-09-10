@@ -17,8 +17,10 @@ from ..i18n import available_languages, load_language, t
 from .base import (
     EMOJI,
     account_label,
+    msg_error,
     msg_points,
     msg_status,
+    msg_token_expired,
     summarize_accounts,
 )
 
@@ -84,7 +86,7 @@ class TelegramBot:
         )
         logger.info("Telegram bot polling.")
 
-        if str(self.cfg.chat_id).strip():
+        if getattr(self.cfg, "notify_startup", True) and str(self.cfg.chat_id).strip():
             try:
                 await self._app.bot.send_message(
                     chat_id=self.cfg.chat_id,
@@ -92,6 +94,9 @@ class TelegramBot:
                 )
             except Exception as exc:  # noqa: BLE001
                 logger.debug(f"Telegram startup ping failed: {exc}")
+
+    def _on(self, flag: str) -> bool:
+        return self.enabled and bool(getattr(self.cfg, flag, True))
 
     async def stop(self) -> None:
         if self._app is None:
@@ -123,10 +128,23 @@ class TelegramBot:
     _acct = staticmethod(account_label)
 
     async def notify_points(self, alias: str, snap: dict, old: int, new: int) -> None:
+        if not self._on("notify_points"):
+            return
+        if new - old < max(1, getattr(self.cfg, "min_points_gain", 1)):
+            return
         await self._broadcast(msg_points(alias, snap, old, new))
 
     async def notify_status(self, alias: str, snap: dict, action: str) -> None:
-        await self._broadcast(msg_status(alias, snap, action))
+        if self._on("notify_status_change"):
+            await self._broadcast(msg_status(alias, snap, action))
+
+    async def notify_error(self, alias: str, streamer: str, message: str) -> None:
+        if self._on("notify_errors"):
+            await self._broadcast(msg_error(alias, streamer, message))
+
+    async def notify_token_expired(self, alias: str) -> None:
+        if self._on("notify_errors"):
+            await self._broadcast(msg_token_expired(alias))
 
     # ------------------------------------------------------------------ #
 

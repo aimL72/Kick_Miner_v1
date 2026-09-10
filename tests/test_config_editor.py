@@ -179,14 +179,19 @@ def test_set_telegram(tmp_path):
     p = _base_cfg(tmp_path)
     tok = "123456789:AAbcdefghabcdefghabcdefghabcdefghXYZ"
     apply_action(p, {"action": "set_telegram", "enabled": True, "bot_token": tok,
-                     "chat_id": "42", "allowed_users": ["7", "bad", "9"]})
+                     "chat_id": "42", "min_points_gain": 20, "notify_points": False})
     raw = json.loads(p.read_text())["Telegram"]
     assert raw["enabled"] is True and raw["bot_token"] == tok
-    assert raw["chat_id"] == "42" and raw["allowed_users"] == [7, 9]
+    assert raw["chat_id"] == "42"
+    assert raw["min_points_gain"] == 20 and raw["notify_points"] is False
     # toggle off without re-sending the token keeps it
     apply_action(p, {"action": "set_telegram", "enabled": False, "bot_token": ""})
     assert json.loads(p.read_text())["Telegram"]["bot_token"] == tok
     assert json.loads(p.read_text())["Telegram"]["enabled"] is False
+    # editable view exposes the flags, not the secret
+    ed = read_editable(p)["telegram"]
+    assert ed["min_points_gain"] == 20 and ed["notify_points"] is False
+    assert "allowed_users" not in ed
 
 
 def test_set_telegram_rejects_bad_token_and_enable_without_token(tmp_path):
@@ -201,9 +206,9 @@ def test_set_discord(tmp_path):
     p = _base_cfg(tmp_path)
     hook = "https://discord.com/api/webhooks/1/abcdef"
     apply_action(p, {"action": "set_discord", "enabled": True, "webhook_url": hook,
-                     "username": "Miner", "min_points_gain": 3, "notify_startup": False})
+                     "min_points_gain": 3, "notify_startup": False})
     dc = json.loads(p.read_text())["Discord"]
-    assert dc["enabled"] and dc["webhook_url"] == hook and dc["username"] == "Miner"
+    assert dc["enabled"] and dc["webhook_url"] == hook
     assert dc["min_points_gain"] == 3 and dc["notify_startup"] is False
     with pytest.raises(ConfigEditError):
         apply_action(p, {"action": "set_discord", "enabled": True, "webhook_url": "http://evil.com/x"})

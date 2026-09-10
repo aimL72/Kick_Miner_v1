@@ -131,8 +131,14 @@
   .add-acct .row2{display:flex;gap:6px;flex-wrap:wrap}
   .add-acct input{flex:1;min-width:150px;background:var(--panel2);border:1px solid var(--border);
                   color:var(--fg);border-radius:7px;padding:7px 10px;font-size:13px}
-  .nfblock{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px}
-  .nfblock h4{font-size:13px;color:var(--accent);margin-bottom:12px}
+  .nfblock{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:0 16px 16px;margin-bottom:16px}
+  .nfblock>summary{font-size:13px;font-weight:700;color:var(--accent);cursor:pointer;
+                   padding:14px 0;list-style:none;user-select:none}
+  .nfblock>summary::-webkit-details-marker{display:none}
+  .nfblock>summary::before{content:'▸ ';color:var(--muted)}
+  .nfblock[open]>summary::before{content:'▾ '}
+  .on-pill{background:var(--green-dim);color:var(--green);font-size:10px;font-weight:700;
+           padding:1px 6px;border-radius:4px;margin-left:6px;text-transform:uppercase}
   .nf{display:flex;align-items:center;gap:10px;margin-bottom:9px;font-size:13px;color:var(--fg2)}
   .nf-l{width:130px;flex-shrink:0}
   .nf input[type=text],.nf input[type=password],.nf input[type=number]{flex:1;background:var(--bg);
@@ -490,57 +496,61 @@ function renderConfig(){
 }
 
 /* ---- notifications editor ---- */
+const NOPEN = (window._nopen = window._nopen || {telegram:true, discord:true});
 function _field(label, node){
   const w=el('label','nf'); w.appendChild(el('span','nf-l',label)); w.appendChild(node); return w;
 }
+const NFLAGS=[['notify_points','Points gains'],['notify_status_change','Online / offline'],
+              ['notify_errors','Errors / token expired'],['notify_startup','Start / stop']];
+
+function _notifBlock(id, title, cfg, secretLabel, secretPlaceholder, extra, buildAction){
+  const d=el('details','nfblock'); d.open = NOPEN[id];
+  d.addEventListener('toggle', ()=>{ NOPEN[id]=d.open; });
+  const sum=el('summary','', title + (cfg.enabled ? ' <span class="on-pill">on</span>' : ''));
+  d.appendChild(sum);
+
+  const en=el('input'); en.type='checkbox'; en.checked=cfg.enabled;
+  d.appendChild(_field('Enabled', en));
+  const sec=el('input'); sec.type='password'; sec.autocomplete='off';
+  const stored = id==='telegram' ? cfg.has_token : cfg.has_webhook;
+  const hint = id==='telegram' ? cfg.token_hint : cfg.webhook_hint;
+  sec.placeholder = stored ? ('stored ('+hint+') — leave blank to keep') : secretPlaceholder;
+  d.appendChild(_field(secretLabel, sec));
+
+  const ex = extra(d);   // block-specific fields, returns {} of getters
+
+  const mn=el('input'); mn.type='number'; mn.min=0; mn.value=cfg.min_points_gain;
+  d.appendChild(_field('Min points gain', mn));
+  const fl={};
+  NFLAGS.forEach(([k,lbl])=>{ const c=el('input'); c.type='checkbox'; c.checked=cfg[k]; fl[k]=c; d.appendChild(_field(lbl,c)); });
+
+  const save=el('button','btn','Save '+title.split(' ')[0]); save.type='button';
+  save.onclick=()=>cfgAction(buildAction({en, sec, mn, fl, ex}), 'notif');
+  d.appendChild(save);
+  return d;
+}
+
 function renderNotif(){
   const body=$('#notifbody'); if(!body) return; body.innerHTML='';
   if(!CFG||!CFG.telegram){ body.textContent='Loading…'; return; }
 
-  // ---- Telegram ----
-  const tg=CFG.telegram;
-  const tb=el('div','nfblock');
-  tb.appendChild(el('h4','','Telegram bot'));
-  const tEn=el('input'); tEn.type='checkbox'; tEn.checked=tg.enabled;
-  tb.appendChild(_field('Enabled', tEn));
-  const tTok=el('input'); tTok.type='password'; tTok.autocomplete='off';
-  tTok.placeholder = tg.has_token ? 'stored ('+tg.token_hint+') — leave blank to keep' : '123456789:AA…  (from @BotFather)';
-  tb.appendChild(_field('Bot token', tTok));
-  const tChat=el('input'); tChat.value=tg.chat_id||''; tChat.placeholder='your numeric user id (@userinfobot)';
-  tb.appendChild(_field('Owner chat id', tChat));
-  const tUsers=el('input'); tUsers.value=(tg.allowed_users||[]).join(', '); tUsers.placeholder='extra viewer ids, comma-separated (optional)';
-  tb.appendChild(_field('Allowed users', tUsers));
-  const tSave=el('button','btn','Save Telegram'); tSave.type='button';
-  tSave.onclick=()=>cfgAction({action:'set_telegram', enabled:tEn.checked,
-    bot_token:tTok.value.trim(), chat_id:tChat.value.trim(),
-    allowed_users:tUsers.value.split(',').map(s=>s.trim()).filter(Boolean)}, 'notif');
-  tb.appendChild(tSave);
-  body.appendChild(tb);
+  body.appendChild(_notifBlock('telegram', 'Telegram bot', CFG.telegram,
+    'Bot token', '123456789:AA…  (from @BotFather)',
+    (d)=>{ const chat=el('input'); chat.value=CFG.telegram.chat_id||'';
+           chat.placeholder='your numeric user id (@userinfobot)';
+           d.appendChild(_field('Owner chat id', chat)); return {chat}; },
+    ({en,sec,mn,fl,ex})=>({action:'set_telegram', enabled:en.checked,
+      bot_token:sec.value.trim(), chat_id:ex.chat.value.trim(), min_points_gain:+mn.value,
+      notify_points:fl.notify_points.checked, notify_status_change:fl.notify_status_change.checked,
+      notify_errors:fl.notify_errors.checked, notify_startup:fl.notify_startup.checked})));
 
-  // ---- Discord ----
-  const dc=CFG.discord;
-  const db=el('div','nfblock');
-  db.appendChild(el('h4','','Discord webhook'));
-  const dEn=el('input'); dEn.type='checkbox'; dEn.checked=dc.enabled;
-  db.appendChild(_field('Enabled', dEn));
-  const dHook=el('input'); dHook.type='password'; dHook.autocomplete='off';
-  dHook.placeholder = dc.has_webhook ? 'stored ('+dc.webhook_hint+') — leave blank to keep' : 'https://discord.com/api/webhooks/…';
-  db.appendChild(_field('Webhook URL', dHook));
-  const dUser=el('input'); dUser.value=dc.username||''; dUser.placeholder='bot display name';
-  db.appendChild(_field('Username', dUser));
-  const dMin=el('input'); dMin.type='number'; dMin.min=0; dMin.value=dc.min_points_gain;
-  db.appendChild(_field('Min points gain', dMin));
-  const flags=[['notify_points','Points gains'],['notify_status_change','Online / offline'],
-               ['notify_errors','Errors'],['notify_startup','Start / stop']];
-  const fl={};
-  flags.forEach(([k,lbl])=>{ const c=el('input'); c.type='checkbox'; c.checked=dc[k]; fl[k]=c; db.appendChild(_field(lbl,c)); });
-  const dSave=el('button','btn','Save Discord'); dSave.type='button';
-  dSave.onclick=()=>cfgAction({action:'set_discord', enabled:dEn.checked,
-    webhook_url:dHook.value.trim(), username:dUser.value, min_points_gain:+dMin.value,
-    notify_points:fl.notify_points.checked, notify_status_change:fl.notify_status_change.checked,
-    notify_errors:fl.notify_errors.checked, notify_startup:fl.notify_startup.checked}, 'notif');
-  db.appendChild(dSave);
-  body.appendChild(db);
+  body.appendChild(_notifBlock('discord', 'Discord webhook', CFG.discord,
+    'Webhook URL', 'https://discord.com/api/webhooks/…',
+    ()=>({}),
+    ({en,sec,mn,fl})=>({action:'set_discord', enabled:en.checked,
+      webhook_url:sec.value.trim(), min_points_gain:+mn.value,
+      notify_points:fl.notify_points.checked, notify_status_change:fl.notify_status_change.checked,
+      notify_errors:fl.notify_errors.checked, notify_startup:fl.notify_startup.checked})));
 }
 
 /* ---- log ---- */

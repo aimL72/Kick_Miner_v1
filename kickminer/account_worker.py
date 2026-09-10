@@ -73,6 +73,7 @@ class AccountWorker:
         on_status_change=None,
         analytics=None,
         discord=None,
+        telegram=None,
     ) -> None:
         self.cfg = cfg
         self.check_interval = check_interval
@@ -83,6 +84,7 @@ class AccountWorker:
         self._on_status_change = on_status_change
         self._analytics = analytics
         self._discord = discord
+        self._telegram = telegram
         self._token_check_counter = 0
 
         self.state = AccountState(
@@ -366,6 +368,8 @@ class AccountWorker:
             )
             if self._discord is not None:
                 self._discord.token_expired(self.cfg.alias)
+            if self._telegram is not None and getattr(self._telegram, "enabled", False):
+                asyncio.create_task(self._telegram.notify_token_expired(self.cfg.alias))
 
     def _record_points(self, name: str, balance: int) -> None:
         if self._analytics is not None:

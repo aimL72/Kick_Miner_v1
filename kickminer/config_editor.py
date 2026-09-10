@@ -96,26 +96,25 @@ def read_editable(path: str | Path) -> dict:
 
     tg = raw.get("Telegram", {}) or {}
     dc = raw.get("Discord", {}) or {}
+    def _notify_block(d: dict, secret_key: str, hint_key: str, has_key: str) -> dict:
+        return {
+            "enabled": bool(d.get("enabled")),
+            "notify_points": bool(d.get("notify_points", True)),
+            "notify_status_change": bool(d.get("notify_status_change", True)),
+            "notify_errors": bool(d.get("notify_errors", True)),
+            "notify_startup": bool(d.get("notify_startup", True)),
+            "min_points_gain": int(d.get("min_points_gain", 1) or 0),
+            has_key: bool(d.get(secret_key)),
+            hint_key: _secret_hint(d.get(secret_key)),
+        }
+
     return {
         "accounts": out,
         "telegram": {
-            "enabled": bool(tg.get("enabled")),
+            **_notify_block(tg, "bot_token", "token_hint", "has_token"),
             "chat_id": str(tg.get("chat_id", "")),
-            "allowed_users": list(tg.get("allowed_users", []) or []),
-            "has_token": bool(tg.get("bot_token")),
-            "token_hint": _secret_hint(tg.get("bot_token")),
         },
-        "discord": {
-            "enabled": bool(dc.get("enabled")),
-            "username": str(dc.get("username", "Kick Channel Points Miner")),
-            "notify_points": bool(dc.get("notify_points", True)),
-            "notify_status_change": bool(dc.get("notify_status_change", True)),
-            "notify_errors": bool(dc.get("notify_errors", True)),
-            "notify_startup": bool(dc.get("notify_startup", True)),
-            "min_points_gain": int(dc.get("min_points_gain", 1) or 0),
-            "has_webhook": bool(dc.get("webhook_url")),
-            "webhook_hint": _secret_hint(dc.get("webhook_url")),
-        },
+        "discord": _notify_block(dc, "webhook_url", "webhook_hint", "has_webhook"),
     }
 
 
@@ -169,41 +168,10 @@ def apply_action(path: str | Path, action: dict) -> dict:
             _atomic_write(path, raw)
             return read_editable(path)
 
-        if kind == "set_telegram":
-            tg = raw.setdefault("Telegram", {})
-            tg["enabled"] = bool(action.get("enabled"))
-            if str(action.get("bot_token") or "").strip():
-                tok = str(action["bot_token"]).strip()
-                if not TELEGRAM_TOKEN_RE.match(tok):
-                    raise ConfigEditError(
-                        "That does not look like a Telegram bot token "
-                        "(expected '123456789:AA...' from @BotFather)."
-                    )
-                tg["bot_token"] = tok
-            if "chat_id" in action:
-                tg["chat_id"] = str(action.get("chat_id") or "").strip()
-            if "allowed_users" in action:
-                tg["allowed_users"] = [
-                    int(u)
-                    for u in (action.get("allowed_users") or [])
-                    if str(u).strip().lstrip("-").isdigit()
-                ]
-            if tg["enabled"] and not tg.get("bot_token"):
-                raise ConfigEditError("Enter a bot token before enabling Telegram.")
-            _atomic_write(path, raw)
-            return read_editable(path)
-
-        if kind == "set_discord":
-            dc = raw.setdefault("Discord", {})
-            dc["enabled"] = bool(action.get("enabled"))
-            if str(action.get("webhook_url") or "").strip():
-                url = str(action["webhook_url"]).strip()
-                if not url.startswith(_DISCORD_HOSTS):
-                    raise ConfigEditError(
-                        "That is not a Discord webhook URL "
-                        "(https://discord.com/api/webhooks/...)."
-                    )
-                dc["webhook_url"] = url
+        if kind in ("set_telegram", "set_discord"):
+            key = "Telegram" if kind == "set_telegram" else "Discord"
+            tgt = raw.setdefault(key, {})
+            tgt["enabled"] = bool(action.get("enabled"))
             for flag in (
                 "notify_points",
                 "notify_status_change",
@@ -211,16 +179,38 @@ def apply_action(path: str | Path, action: dict) -> dict:
                 "notify_startup",
             ):
                 if flag in action:
-                    dc[flag] = bool(action[flag])
-            if "username" in action:
-                dc["username"] = str(action.get("username") or "")[:80]
+                    tgt[flag] = bool(action[flag])
             if "min_points_gain" in action:
                 try:
-                    dc["min_points_gain"] = max(0, int(action.get("min_points_gain") or 0))
+                    tgt["min_points_gain"] = max(0, int(action.get("min_points_gain") or 0))
                 except (TypeError, ValueError):
                     raise ConfigEditError("min_points_gain must be a number.") from None
-            if dc["enabled"] and not dc.get("webhook_url"):
-                raise ConfigEditError("Enter a webhook URL before enabling Discord.")
+
+            if kind == "set_telegram":
+                if str(action.get("bot_token") or "").strip():
+                    tok = str(action["bot_token"]).strip()
+                    if not TELEGRAM_TOKEN_RE.match(tok):
+                        raise ConfigEditError(
+                            "That does not look like a Telegram bot token "
+                            "(expected '123456789:AA...' from @BotFather)."
+                        )
+                    tgt["bot_token"] = tok
+                if "chat_id" in action:
+                    tgt["chat_id"] = str(action.get("chat_id") or "").strip()
+                if tgt["enabled"] and not tgt.get("bot_token"):
+                    raise ConfigEditError("Enter a bot token before enabling Telegram.")
+            else:
+                if str(action.get("webhook_url") or "").strip():
+                    url = str(action["webhook_url"]).strip()
+                    if not url.startswith(_DISCORD_HOSTS):
+                        raise ConfigEditError(
+                            "That is not a Discord webhook URL "
+                            "(https://discord.com/api/webhooks/...)."
+                        )
+                    tgt["webhook_url"] = url
+                if tgt["enabled"] and not tgt.get("webhook_url"):
+                    raise ConfigEditError("Enter a webhook URL before enabling Discord.")
+
             _atomic_write(path, raw)
             return read_editable(path)
 
