@@ -1,6 +1,22 @@
-# Kick Channel Points Miner
+<p align="center">
+  <img src="assets/logo.png" alt="Kick Channel Points Miner" width="320">
+</p>
 
-<p align="center"><em><a href="README.md">🇬🇧 English version</a></em></p>
+<p align="center">
+  <a href="https://github.com/aimL72/Kick_Miner_v1/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/aimL72/Kick_Miner_v1?style=flat&color=black&logo=unlicense&logoColor=white"></a>
+  <a href="https://github.com/aimL72/Kick_Miner_v1/commits/main"><img alt="Last commit" src="https://img.shields.io/github/last-commit/aimL72/Kick_Miner_v1?style=flat&color=32CD32&logo=github&logoColor=white"></a>
+  <a href="https://github.com/aimL72/Kick_Miner_v1/pkgs/container/kick_miner_v1"><img alt="GHCR image" src="https://img.shields.io/badge/ghcr.io-kick__miner__v1-2496ED?style=flat&logo=docker&logoColor=white"></a>
+  <a href="README.md"><img alt="English version" src="https://img.shields.io/badge/lang-%F0%9F%87%AC%F0%9F%87%A7%20English-white?style=flat"></a>
+</p>
+
+<h1 align="center">https://github.com/aimL72/Kick_Miner_v1</h1>
+
+**Credits**
+- Konzept / Funktionsumfang: [zarmstrong/Twitch-Channel-Points-Miner-v3](https://github.com/zarmstrong/Twitch-Channel-Points-Miner-v3) (GPL-3.0) – nur als konzeptionelle Vorlage genutzt, kein Quellcode übernommen
+- Ursprüngliche Twitch-Idee: [gottagofaster236/Twitch-Channel-Points-Miner](https://github.com/gottagofaster236/Twitch-Channel-Points-Miner) und [Tkd-Alex/Twitch-Channel-Points-Miner-v2](https://github.com/Tkd-Alex/Twitch-Channel-Points-Miner-v2)
+- Kick-Plattform-Basis: [Baillora/Kick_Channel_Points_Miner](https://github.com/Baillora/Kick_Channel_Points_Miner) (MIT) – Kick-API-Endpunkte, Cloudflare-Bypass-Ansatz, Viewer-WebSocket-Protokoll
+
+> Ein einfacher Bot, der für dich Kick-Streams schaut und die Channel-Points farmt.
 
 Ein reiner Channel-Points-Farm-Bot für **Kick.com**. Er hält für die
 konfigurierten Streamer eine Viewer-WebSocket offen, sodass beim „Zuschauen"
@@ -157,11 +173,7 @@ Der vollständige Verlauf aller Änderungen steht in [CHANGELOG.md](CHANGELOG.md
 
 ## Danksagungen
 
-* [Baillora/Kick_Channel_Points_Miner](https://github.com/Baillora/Kick_Channel_Points_Miner)
-  (MIT) – Kick-API-Endpunkte, Cloudflare-Bypass-Ansatz, Viewer-WebSocket-Protokoll.
-* [zarmstrong/Twitch-Channel-Points-Miner-v3](https://github.com/zarmstrong/Twitch-Channel-Points-Miner-v3)
-  (GPL-3.0) – konzeptionelle Vorlage für Architektur, Dashboard-Aufbau und das
-  Discord-Nachrichtenformat. Es wurde kein Quellcode übernommen.
+Siehe den **Credits**-Block ganz oben in dieser Datei.
 
 ## Lizenz
 

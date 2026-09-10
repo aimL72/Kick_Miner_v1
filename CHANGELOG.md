@@ -10,6 +10,8 @@ hash is given for each change.
 ## [Unreleased]
 
 ### Added
+- Project logo (`assets/logo.png`), a credits header at the top of both READMEs
+  (in the style of the Twitch miner) and a `CHANGELOG.md`.
 - **Hover help throughout the dashboard** (`a2a8bc0`) — a small `?` bubble next to
   every label shows a tooltip explaining the control (watch mode, cycle interval,
   max concurrent, token, streamer list, add-account, all Notification fields,

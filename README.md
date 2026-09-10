@@ -1,6 +1,22 @@
-# Kick Channel Points Miner
+<p align="center">
+  <img src="assets/logo.png" alt="Kick Channel Points Miner" width="320">
+</p>
 
-<p align="center"><em><a href="README.de.md">🇩🇪 Deutsche Version</a></em></p>
+<p align="center">
+  <a href="https://github.com/aimL72/Kick_Miner_v1/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/aimL72/Kick_Miner_v1?style=flat&color=black&logo=unlicense&logoColor=white"></a>
+  <a href="https://github.com/aimL72/Kick_Miner_v1/commits/main"><img alt="Last commit" src="https://img.shields.io/github/last-commit/aimL72/Kick_Miner_v1?style=flat&color=32CD32&logo=github&logoColor=white"></a>
+  <a href="https://github.com/aimL72/Kick_Miner_v1/pkgs/container/kick_miner_v1"><img alt="GHCR image" src="https://img.shields.io/badge/ghcr.io-kick__miner__v1-2496ED?style=flat&logo=docker&logoColor=white"></a>
+  <a href="README.de.md"><img alt="Deutsche Version" src="https://img.shields.io/badge/lang-%F0%9F%87%A9%F0%9F%87%AA%20Deutsch-white?style=flat"></a>
+</p>
+
+<h1 align="center">https://github.com/aimL72/Kick_Miner_v1</h1>
+
+**Credits**
+- Concept / feature set: [zarmstrong/Twitch-Channel-Points-Miner-v3](https://github.com/zarmstrong/Twitch-Channel-Points-Miner-v3) (GPL-3.0) — used as a conceptual template only, no source code taken
+- Original Twitch idea: [gottagofaster236/Twitch-Channel-Points-Miner](https://github.com/gottagofaster236/Twitch-Channel-Points-Miner) and [Tkd-Alex/Twitch-Channel-Points-Miner-v2](https://github.com/Tkd-Alex/Twitch-Channel-Points-Miner-v2)
+- Kick platform base: [Baillora/Kick_Channel_Points_Miner](https://github.com/Baillora/Kick_Channel_Points_Miner) (MIT) — Kick API endpoints, Cloudflare-bypass approach, viewer WebSocket protocol
+
+> A simple bot that watches Kick streams for you and farms the channel points.
 
 A pure **Kick.com** channel-points farming bot. It keeps a viewer WebSocket open
 to the streamers you configure so points accrue while you're "watching", tracks
@@ -152,11 +168,7 @@ See [CHANGELOG.md](CHANGELOG.md) for the full history of changes.
 
 ## Credits
 
-* [Baillora/Kick_Channel_Points_Miner](https://github.com/Baillora/Kick_Channel_Points_Miner)
-  (MIT) – Kick API endpoints, Cloudflare-bypass approach, viewer WebSocket protocol.
-* [zarmstrong/Twitch-Channel-Points-Miner-v3](https://github.com/zarmstrong/Twitch-Channel-Points-Miner-v3)
-  (GPL-3.0) – conceptual template for architecture, dashboard layout and the
-  Discord message format. No source code was taken.
+See the **Credits** block at the top of this file.
 
 ## License
 
