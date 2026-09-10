@@ -55,8 +55,12 @@ def _make_callbacks(discord: DiscordNotifier, telegram: TelegramBot):
 
     def on_status_change(alias: str, snap: dict, action: str) -> None:
         discord.status_change(alias, snap, action)
-        if telegram.enabled and action in {"online", "offline"}:
+        if not telegram.enabled:
+            return
+        if action in {"online", "offline"}:
             asyncio.create_task(telegram.notify_status(alias, snap, action))
+        elif action == "no_points":
+            asyncio.create_task(telegram.notify_no_points(alias, snap))
 
     return on_points_gain, on_status_change
 

@@ -70,6 +70,7 @@ class Config:
     stagger_max: float = 8.0
     cycle_enabled: bool = False
     cycle_interval_minutes: int = 15
+    no_points_grace_minutes: int = 30  # 0 = never auto-skip
     global_proxy: str | None = None
     accounts: list[AccountConfig] = field(default_factory=list)
     web: WebConfig = field(default_factory=WebConfig)
@@ -247,6 +248,7 @@ def load_config(path: str | Path = "config.json") -> Config:
         cycle_interval_minutes=max(
             1, int((raw.get("Cycle", {}) or {}).get("interval_minutes", 15) or 15)
         ),
+        no_points_grace_minutes=max(0, int(_num("No_points_grace_minutes", 30))),
         global_proxy=global_proxy,
         accounts=accounts,
         web=WebConfig(

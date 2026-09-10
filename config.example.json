@@ -35,6 +35,8 @@
     "interval_minutes": 15
   },
 
+  "No_points_grace_minutes": 30,
+
   "Accounts": [
     {
       "alias": "Main Account",

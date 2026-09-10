@@ -16,6 +16,7 @@ from .base import (
     EMOJI,
     account_label,
     msg_error,
+    msg_no_points,
     msg_points,
     msg_status,
     msg_token_expired,
@@ -134,6 +135,10 @@ class TelegramBot:
     async def notify_status(self, alias: str, snap: dict, action: str) -> None:
         if self._on("notify_status_change"):
             await self._broadcast(msg_status(alias, snap, action))
+
+    async def notify_no_points(self, alias: str, snap: dict) -> None:
+        if self._on("notify_errors"):
+            await self._broadcast(msg_no_points(alias, snap))
 
     async def notify_error(self, alias: str, streamer: str, message: str) -> None:
         if self._on("notify_errors"):

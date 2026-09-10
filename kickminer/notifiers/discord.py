@@ -92,6 +92,15 @@ class DiscordNotifier:
             )
 
     def status_change(self, alias: str, snap: dict, action: str) -> None:
+        if action == "no_points":
+            if self._on("notify_errors"):
+                self._enqueue(
+                    f"{account_label(alias, snap)}\n"
+                    f"{EMOJI['error']} → {snap.get('name')} awards no channel points"
+                    " — skipping to the next streamer",
+                    "error",
+                )
+            return
         if not (self._on("notify_status_change") and action in ("online", "offline")):
             return
         self._enqueue(

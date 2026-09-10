@@ -39,6 +39,11 @@ either doesn't have them or exposes no usable interface for them.
 * **Priority watching** – streamer list position = priority; when a
   higher-priority streamer goes live it displaces a lower one, capped at
   `max_concurrent`.
+* **Cycle watch mode** – optionally rotate through the whole list in groups of
+  `max_concurrent`, one group per interval, instead of priority order.
+* **Auto-skip dead channels** – some Kick channels award no points at all. If a
+  watched streamer earns nothing for `No_points_grace_minutes` straight the miner
+  flags it "no points", moves to the next streamer, and re-checks it every 6 h.
 * **Cloudflare bypass** – one shared `curl_cffi` session per account with a
   403 re-bootstrap + retry.
 * **SOCKS5 / HTTP proxy** – global or per-account.
@@ -103,6 +108,8 @@ Tokens expire; if the points check starts failing, grab a fresh one.
 | `Accounts[].proxy` | per-account proxy, or `null` for the global one |
 | `Accounts[].streamers` | ordered list – **position = priority**, index 0 highest |
 | `Accounts[].max_concurrent` | how many streamers to watch at once |
+| `Cycle.enabled` / `.interval_minutes` | rotate through the list in groups instead of priority order (5–120 min) |
+| `No_points_grace_minutes` | skip a streamer that earns nothing for this long (`0` = never; otherwise 10–240); re-checked every 6 h |
 | `Check_interval` | seconds between online checks |
 | `Reconnect_cooldown` | after a streamer's WebSocket gives up, seconds to wait before retrying that streamer |
 | `Connection_stagger_min/max` | delay range between opening connections |

@@ -216,7 +216,11 @@ def test_set_discord(tmp_path):
 
 def test_read_editable_cycle_defaults(tmp_path):
     p = _base_cfg(tmp_path)
-    assert read_editable(p)["cycle"] == {"enabled": False, "interval_minutes": 15}
+    assert read_editable(p)["cycle"] == {
+        "enabled": False,
+        "interval_minutes": 15,
+        "no_points_grace_minutes": 30,
+    }
 
 
 def test_set_cycle(tmp_path):
@@ -229,3 +233,19 @@ def test_set_cycle(tmp_path):
         apply_action(p, {"action": "set_cycle", "enabled": True, "interval_minutes": 2})
     with pytest.raises(ConfigEditError):
         apply_action(p, {"action": "set_cycle", "enabled": True, "interval_minutes": 999})
+
+
+def test_set_cycle_no_points_grace(tmp_path):
+    p = _base_cfg(tmp_path)
+    apply_action(p, {"action": "set_cycle", "enabled": False, "no_points_grace_minutes": 45})
+    assert json.loads(p.read_text())["No_points_grace_minutes"] == 45
+    assert read_editable(p)["cycle"]["no_points_grace_minutes"] == 45
+    # 0 disables it
+    apply_action(p, {"action": "set_cycle", "enabled": False, "no_points_grace_minutes": 0})
+    assert json.loads(p.read_text())["No_points_grace_minutes"] == 0
+    # out-of-range is rejected
+    for bad in (5, 999):
+        with pytest.raises(ConfigEditError):
+            apply_action(
+                p, {"action": "set_cycle", "enabled": False, "no_points_grace_minutes": bad}
+            )

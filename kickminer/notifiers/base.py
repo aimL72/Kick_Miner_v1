@@ -52,6 +52,14 @@ def msg_points(alias: str, snap: dict, old: int, new: int) -> str:
     )
 
 
+def msg_no_points(alias: str, snap: dict) -> str:
+    return (
+        f"{account_label(alias, snap)}\n"
+        f"{EMOJI['error']} {_name(snap)} awards no channel points "
+        "— skipping to the next streamer"
+    )
+
+
 def msg_claim(alias: str, snap: dict) -> str:
     return f"{account_label(alias, snap)}\n{EMOJI['claim']} {_name(snap)} bonus claimed"
 

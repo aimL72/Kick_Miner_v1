@@ -40,6 +40,11 @@ Schnittstelle dafür.
 * **Prioritäts-Watching** – Position in der Streamer-Liste = Priorität; geht ein
   höher priorisierter Streamer live, verdrängt er einen niedrigeren
   (max. `max_concurrent` gleichzeitig).
+* **Cycle-Modus** – optional rotierend durch die ganze Liste in Gruppen von
+  `max_concurrent`, eine Gruppe pro Intervall, statt nach Priorität.
+* **Tote Kanäle überspringen** – manche Kick-Kanäle vergeben gar keine Punkte.
+  Bringt ein geschauter Streamer `No_points_grace_minutes` lang nichts, markiert
+  der Miner ihn als „no points", geht zum nächsten und prüft ihn alle 6 h erneut.
 * **Cloudflare-Bypass** – eine geteilte `curl_cffi`-Session pro Account mit
   403-Neuinitialisierung + Retry.
 * **SOCKS5-/HTTP-Proxy** – global oder pro Account.
@@ -106,6 +111,8 @@ Schlüssel in `config.json` (vollständiges Beispiel: `config.example.json`):
 | `Accounts[].proxy` | Proxy pro Account, oder `null` für den globalen |
 | `Accounts[].streamers` | geordnete Liste – **Position = Priorität**, Index 0 = höchste |
 | `Accounts[].max_concurrent` | wie viele Streamer gleichzeitig geschaut werden |
+| `Cycle.enabled` / `.interval_minutes` | rotierend in Gruppen statt nach Priorität (5–120 Min) |
+| `No_points_grace_minutes` | Streamer überspringen, der so lange nichts einbringt (`0` = nie; sonst 10–240); Neuprüfung alle 6 h |
 | `Check_interval` | Sekunden zwischen den Online-Checks |
 | `Reconnect_cooldown` | wenn die WebSocket eines Streamers aufgibt: Wartezeit in Sekunden bis zum erneuten Versuch |
 | `Connection_stagger_min/max` | Verzögerungsbereich zwischen Verbindungsaufbauten |

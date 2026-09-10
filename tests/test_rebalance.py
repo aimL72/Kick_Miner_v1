@@ -1,6 +1,11 @@
 import time
 
-from kickminer.account_worker import cycle_window, eligible_online, select_active
+from kickminer.account_worker import (
+    cycle_window,
+    eligible_online,
+    is_no_points,
+    select_active,
+)
 from kickminer.entities import AccountState, StreamerState
 
 
@@ -93,3 +98,16 @@ def test_cycle_window_next_switch_countdown():
 
 def test_cycle_window_single_group():
     assert cycle_window(["a", "b"], 2, 5000, 900) == (0, 1, ["a", "b"], 400)
+
+
+def test_is_no_points():
+    grace = 1800.0  # 30 min
+    # flat line past the grace window -> skip
+    assert is_no_points(1900, 0, grace) is True
+    # not watched long enough yet
+    assert is_no_points(1200, 0, grace) is False
+    # earned something -> keep
+    assert is_no_points(3600, 10, grace) is False
+    # feature disabled
+    assert is_no_points(9999, 0, 0) is False
+    assert is_no_points(9999, 0, -1) is False

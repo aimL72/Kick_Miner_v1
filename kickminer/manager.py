@@ -35,6 +35,7 @@ class AccountManager:
                 stagger_max=config.stagger_max,
                 cycle_enabled=config.cycle_enabled,
                 cycle_interval_minutes=config.cycle_interval_minutes,
+                no_points_grace_minutes=config.no_points_grace_minutes,
                 on_points_gain=on_points_gain,
                 on_status_change=on_status_change,
                 analytics=analytics,

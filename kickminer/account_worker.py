@@ -27,6 +27,20 @@ from .viewer_ws import ViewerWebSocket
 
 _POINTS_POLL_EVERY = (120.0, 180.0)
 _ONLINE_CHECK_GAP = (1.0, 2.5)  # between per-streamer checks within one sweep
+_NO_POINTS_PARK = 6 * 3600.0  # skipped "no points" streamers get re-checked after this
+
+
+def is_no_points(watched_seconds: float, points_gained: int, grace_seconds: float) -> bool:
+    """True when a streamer has been watched for ``grace_seconds`` straight and
+    the balance never moved - Kick normally accrues ~10 points every 10-15 min,
+    so a flat line that long means the channel awards no points at all.
+
+    ``grace_seconds <= 0`` disables the check.
+    """
+
+    if grace_seconds <= 0:
+        return False
+    return watched_seconds >= grace_seconds and points_gained <= 0
 
 
 def select_active(order: list[str], online: set[str], max_concurrent: int) -> list[str]:
@@ -88,6 +102,7 @@ class AccountWorker:
         stagger_max: float = 8.0,
         cycle_enabled: bool = False,
         cycle_interval_minutes: float = 15.0,
+        no_points_grace_minutes: float = 30.0,
         on_points_gain=None,
         on_status_change=None,
         analytics=None,
@@ -102,6 +117,7 @@ class AccountWorker:
         self.cycle_enabled = cycle_enabled
         self.cycle_seconds = max(300.0, cycle_interval_minutes * 60.0)
         self._cycle_epoch = time.monotonic()
+        self.no_points_grace = max(0.0, no_points_grace_minutes) * 60.0
         self._on_points_gain = on_points_gain
         self._on_status_change = on_status_change
         self._analytics = analytics
@@ -291,6 +307,8 @@ class AccountWorker:
                 st.points = balance
                 self._record_points(name, balance)
             st.points_start = st.points
+            st.watch_started_at = time.monotonic()
+            st.no_points = False  # re-evaluated over this fresh watch session
 
             async def _on_closed(streamer: str = name) -> None:
                 s = self.state.streamers[streamer]
@@ -381,6 +399,7 @@ class AccountWorker:
                 st.last_points_update = datetime.now(timezone.utc)
                 self._record_points(name, amount)
                 if amount > old:
+                    st.no_points = False
                     gain = amount - old
                     logger.success(
                         t(
@@ -395,10 +414,35 @@ class AccountWorker:
                         self._on_points_gain(
                             self.cfg.alias, self._snap(name), old, amount
                         )
+                elif not st.no_points and st.watch_started_at and is_no_points(
+                    time.monotonic() - st.watch_started_at,
+                    st.points_gained,
+                    self.no_points_grace,
+                ):
+                    st.no_points = True
+                    st.cooldown_until = time.monotonic() + _NO_POINTS_PARK
+                    logger.warning(
+                        f"[{self.cfg.alias}] {name}: no channel points after "
+                        f"{int((time.monotonic() - st.watch_started_at) / 60)} min "
+                        f"of watching - skipping to the next streamer "
+                        f"(re-checks in {int(_NO_POINTS_PARK / 3600)}h)"
+                    )
+                    self._emit_status(name, "no_points")
+                    asyncio.create_task(
+                        self._skip_no_points(name), name=f"nopoints:{name}"
+                    )
+                    return
         except asyncio.CancelledError:
             pass
         except Exception as exc:  # noqa: BLE001
             logger.warning(f"[{self.cfg.alias}] points loop {name}: {exc}")
+
+    async def _skip_no_points(self, name: str) -> None:
+        """Drop a streamer that awards no points and let rebalance fill the slot
+        with the next eligible streamer right away."""
+
+        await self._stop_watching(name, reason="no channel points")
+        await self._rebalance()
 
     # ------------------------------------------------------------------ #
 

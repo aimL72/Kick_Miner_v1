@@ -97,6 +97,7 @@
   .card .g{font-size:11px;color:var(--fg2)}
   .card .st{font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
   .card.watching .st{color:var(--green)} .card.online .st{color:var(--orange)}
+  .card.nopoints{border-color:rgba(240,71,71,.4)} .card.nopoints .st{color:var(--red)}
   .card.dimmed{opacity:.45}
 
   /* hover help */
@@ -344,7 +345,8 @@ function renderData(d){
     h3.append(' ', hint('This account. "direct/proxy" = connection type, "2/2" = streamers watched / max concurrent, '+
       '"up" = time since this account started, then its total points. '+
       (cyc.enabled ? 'In cycle mode it also shows which group is active and the countdown to the next switch. ' : '')+
-      'Cards below: green = watching (earning), orange = live but queued, grey = offline'+
+      'Cards below: green = watching (earning), orange = live but queued, grey = offline, '+
+      'red "no pts" = channel gave no points so it was skipped'+
       (cyc.enabled ? ', dimmed = not in the current cycle group.' : '.')));
     wrap.appendChild(h3);
     const win = (cyc.enabled && cyc.window) ? new Set(cyc.window) : null;
@@ -354,10 +356,12 @@ function renderData(d){
       let cls='card',st='offline';
       if(s.watching){cls+=' watching';st='watching';}
       else if(s.online){cls+=' online';st='queued';}
+      if(s.no_points){cls+=' nopoints';st='no points';}
       if(win && !win.has(n)){ cls+=' dimmed'; }
       const c=el('div',cls);
       c.appendChild(el('div','t',
         `<span class="dot"></span><span class="nm"><a href="https://kick.com/${n}" target="_blank" rel="noopener">${n}</a></span><span class="pr">#${s.priority??'?'}</span>`+
+        (s.no_points?'<span class="pr" style="background:rgba(240,71,71,.15);color:var(--red)" title="This channel awarded no points while watched — the miner skipped it and re-checks every 6h">no pts</span>':'')+
         (win&&win.has(n)?'<span class="pr" style="background:var(--accent-dim);color:var(--accent)">now</span>':'')));
       c.appendChild(el('div','b',
         `<span class="pts">${fmt(s.points)} <span class="g">(+${fmt(s.points_gained)})</span></span><span class="st">${st}</span>`));
@@ -484,9 +488,21 @@ function renderConfig(){
   ivWrap.style.display = cy.enabled ? 'flex' : 'none';
   modeSel.onchange=()=>{ ivWrap.style.display = modeSel.value==='cycle' ? 'flex' : 'none'; };
   const wmSave=el('button','btn','Save mode'); wmSave.type='button';
-  wmSave.onclick=()=>cfgAction({action:'set_cycle', enabled:modeSel.value==='cycle', interval_minutes:+iv.value});
   const wmRow=el('div','tokrow'); wmRow.appendChild(modeSel); wmRow.appendChild(ivWrap); wmRow.appendChild(wmSave);
   wm.appendChild(wmRow);
+
+  // ---- auto-skip streamers that award no points ----
+  const npg=el('input'); npg.type='number'; npg.min=0; npg.max=240;
+  npg.value = (cy.no_points_grace_minutes ?? 30);
+  const npWrap=el('label','limit'); npWrap.append(labeled('skip "no points" after',
+    'Some Kick channels award no points at all. If a watched streamer earns nothing '+
+    'for this many minutes straight, the miner marks it "no points", moves on to the '+
+    'next streamer, and re-checks it once every 6 hours. 0 = never skip. Otherwise 10–240.'));
+  npWrap.appendChild(npg); npWrap.appendChild(document.createTextNode(' min'));
+  wm.appendChild(el('div','tokrow')).append(npWrap);
+
+  wmSave.onclick=()=>cfgAction({action:'set_cycle', enabled:modeSel.value==='cycle',
+    interval_minutes:+iv.value, no_points_grace_minutes:+npg.value});
   body.appendChild(wm);
 
   CFG.accounts.forEach(acc=>{

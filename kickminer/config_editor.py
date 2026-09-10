@@ -114,6 +114,9 @@ def read_editable(path: str | Path) -> dict:
         "cycle": {
             "enabled": bool(cy.get("enabled")),
             "interval_minutes": int(cy.get("interval_minutes", 15) or 15),
+            "no_points_grace_minutes": max(
+                0, int(raw.get("No_points_grace_minutes", 30) or 0)
+            ),
         },
         "telegram": {
             **_notify_block(tg, "bot_token", "token_hint", "has_token"),
@@ -184,6 +187,18 @@ def apply_action(path: str | Path, action: dict) -> dict:
                 if not 5 <= m <= 120:
                     raise ConfigEditError("interval must be between 5 and 120 minutes.")
                 cy["interval_minutes"] = m
+            if "no_points_grace_minutes" in action:
+                try:
+                    g = int(action.get("no_points_grace_minutes"))
+                except (TypeError, ValueError):
+                    raise ConfigEditError(
+                        "no-points grace must be a number of minutes."
+                    ) from None
+                if g != 0 and not 10 <= g <= 240:
+                    raise ConfigEditError(
+                        "no-points grace must be 0 (off) or between 10 and 240 minutes."
+                    )
+                raw["No_points_grace_minutes"] = g
             _atomic_write(path, raw)
             return read_editable(path)
 

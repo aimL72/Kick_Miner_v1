@@ -10,6 +10,13 @@ hash is given for each change.
 ## [Unreleased]
 
 ### Added
+- **Auto-skip channels that award no points.** Some Kick channels give no channel
+  points at all. If a watched streamer earns nothing for
+  `No_points_grace_minutes` straight (default 30, `0` disables, otherwise 10–240),
+  the miner flags it "no points", moves to the next streamer, and re-checks it
+  once every 6 hours. Shown as a red "no pts" badge on the dashboard card and
+  pushed to Discord / Telegram (gated by the "errors" toggle). Configurable from
+  the dashboard Watch-mode section.
 - Project logo (`assets/logo.png`), a credits header at the top of both READMEs
   (in the style of the Twitch miner) and a `CHANGELOG.md`.
 - **Hover help throughout the dashboard** (`a2a8bc0`) — a small `?` bubble next to

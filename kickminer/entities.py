@@ -31,10 +31,12 @@ class StreamerState:
     points: int = 0
     points_start: int | None = None  # balance when this watch session began
     last_points_update: datetime | None = None
+    watch_started_at: float = 0.0  # time.monotonic() when the current watch began
 
     error_count: int = 0
     last_error: str | None = None
     cooldown_until: float = 0.0  # time.monotonic() before which we won't reconnect
+    no_points: bool = False  # watched long enough with zero gain -> awards no points
 
     ws_task: asyncio.Task | None = None
     points_task: asyncio.Task | None = None
@@ -62,6 +64,7 @@ class StreamerState:
             "stream_id": self.stream_id,
             "errors": self.error_count,
             "cooldown_seconds": max(0, int(self.cooldown_until - time.monotonic())),
+            "no_points": self.no_points,
         }
 
 
