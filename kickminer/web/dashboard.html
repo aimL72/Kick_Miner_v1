@@ -99,6 +99,20 @@
   .card.watching .st{color:var(--green)} .card.online .st{color:var(--orange)}
   .card.dimmed{opacity:.45}
 
+  /* hover help */
+  .hint{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;
+        border-radius:50%;background:var(--panel3);color:var(--fg2);font-size:10px;font-weight:700;
+        cursor:help;position:relative;flex-shrink:0;vertical-align:middle}
+  .hint:hover,.hint:focus{background:var(--accent);color:#1a1a1a;outline:none}
+  .hint:hover::after,.hint:focus::after{
+    content:attr(data-tip);position:absolute;left:50%;bottom:calc(100% + 9px);transform:translateX(-50%);
+    background:#12131a;color:var(--fg);border:1px solid var(--border);border-radius:8px;padding:8px 11px;
+    font-size:12px;font-weight:400;width:240px;max-width:70vw;white-space:normal;text-align:left;
+    line-height:1.45;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+  .hint:hover::before,.hint:focus::before{
+    content:'';position:absolute;left:50%;bottom:calc(100% + 3px);transform:translateX(-50%);
+    border:6px solid transparent;border-top-color:var(--border)}
+
   /* form controls (dark) */
   select{background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:7px;
          padding:7px 10px;font-size:13px;max-width:100%}
@@ -170,7 +184,7 @@
     <h1><span class="k">KICK</span> MINER</h1>
     <span class="ver" id="ver"></span>
     <span class="spacer"></span>
-    <button id="restartbtn" class="restart">Restart</button>
+    <button id="restartbtn" class="restart" title="Applies the configuration you saved in the Config / Notifications tabs. The miner stops and starts again (a few seconds). It glows when there are unsaved-to-running changes.">Restart</button>
     <span class="clock">updated <span id="clock">--:--:--</span></span>
   </header>
 
@@ -179,22 +193,22 @@
   </div>
 
   <div class="stats" id="stats"></div>
-  <div class="nowwatch" id="nowwatch">Not watching anything yet.</div>
+  <div class="nowwatch" id="nowwatch" title="Every streamer with an open viewer connection right now, across all accounts, with the account farming it and its current point balance. These are the channels actively earning.">Not watching anything yet.</div>
 
   <div class="tabs">
-    <button data-tab="points" class="on">Points</button>
-    <button data-tab="config">Config</button>
-    <button data-tab="notif">Notifications</button>
-    <button data-tab="log">Log</button>
+    <button data-tab="points" class="on" title="Live view: points per streamer, a history chart and one card per account showing what is being watched right now.">Points</button>
+    <button data-tab="config" title="Edit accounts, tokens, the streamer list and the watch mode. Changes are saved to config.json and apply on the next Restart.">Config</button>
+    <button data-tab="notif" title="Set up the Telegram bot and the Discord webhook so the miner can message you about points, going online/offline and errors.">Notifications</button>
+    <button data-tab="log" title="Live tail of logs/kickminer.log — useful to see reconnects, token checks and errors.">Log</button>
   </div>
 
   <!-- POINTS -->
   <section id="tab-points">
     <div class="box">
       <div class="row">
-        <div class="slist" id="slist"></div>
+        <div class="slist" id="slist" title="Pick a streamer to plot its point history in the chart. The list holds every streamer the miner has recorded points for."></div>
         <div class="chartwrap">
-          <div class="ranges" id="ranges">
+          <div class="ranges" id="ranges" title="Time range for the chart below.">
             <button data-h="6">6h</button>
             <button data-h="24" class="on">24h</button>
             <button data-h="72">3d</button>
@@ -233,7 +247,7 @@
   <section id="tab-log" hidden>
     <div class="box">
       <div class="logbar">
-        <button class="btn ghost" id="logpause">Pause</button>
+        <button class="btn ghost" id="logpause" title="Freeze the log view so you can scroll and read. The miner keeps logging; click Resume to catch up.">Pause</button>
         <span style="color:var(--muted);font-size:12px">tail of logs/kickminer.log · refreshes 3s</span>
       </div>
       <pre class="log" id="logbox">loading…</pre>
@@ -246,6 +260,10 @@
 const $ = s => document.querySelector(s);
 const fmt = n => (n||0).toLocaleString();
 const el = (t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;};
+// small "?" help bubble with a hover tooltip
+const hint = tip => { const s=el('span','hint','?'); s.tabIndex=0; s.setAttribute('data-tip',tip); return s; };
+// label text + a trailing hint bubble, as one node
+const labeled = (text,tip) => { const w=el('span'); w.append(text+' ', hint(tip)); return w; };
 function millify(n){n=+n||0;const u=['','k','M','B'];let i=0;while(Math.abs(n)>=1000&&i<3){n/=1000;i++;}
   return (Math.round(n*100)/100).toString().replace(/\.0+$/,'')+u[i];}
 
@@ -280,13 +298,15 @@ function renderData(d){
     if(s.watching) watching++; else if(s.online) online++;
   }
   $('#stats').innerHTML='';
-  [['ACTIVE','',(d.accounts||[]).length+' acct'],
-   [watching,'green','watching'],
-   [watching+online,'','online'],
-   [millify(d.grand_total),'green','total points'],
-   ['+'+fmt(d.session_gain),'accent','this session']
-  ].forEach(([v,c,l])=>{
-    const s=el('div','stat'); s.appendChild(el('div','v '+c,v)); s.appendChild(el('div','l',l)); $('#stats').appendChild(s);
+  [['ACTIVE','',(d.accounts||[]).length+' acct','Miner is running. Shows how many Kick accounts are configured.'],
+   [watching,'green','watching','Streamers with an open viewer connection right now — these are earning points.'],
+   [watching+online,'','online','Streamers on your lists that are live right now (watched + queued).'],
+   [millify(d.grand_total),'green','total points','Sum of your current point balance across every streamer on every account.'],
+   ['+'+fmt(d.session_gain),'accent','this session','Points earned since the miner last started.']
+  ].forEach(([v,c,l,tip])=>{
+    const s=el('div','stat'); s.appendChild(el('div','v '+c,v));
+    const lab=el('div','l'); lab.append(l,' ',hint(tip)); s.appendChild(lab);
+    $('#stats').appendChild(s);
   });
 
   const nw=d.now_watching||[];
@@ -318,9 +338,15 @@ function renderData(d){
       const ns=cyc.next_switch_seconds||0;
       cycMeta=` · <span style="color:var(--accent)">cycle ${cyc.group+1}/${cyc.groups}, switch in ${Math.floor(ns/60)}m${ns%60}s</span>`;
     }
-    wrap.appendChild(el('h3',null,
+    const h3=el('h3',null,
       `<span class="alias">${a.alias}</span>`+
-      `<span class="meta">${a.proxy?'proxy':'direct'} · ${a.active_count}/${a.max_concurrent} · up ${h}h ${m}m · ${fmt(a.total_points)} pts${cycMeta}</span>`));
+      `<span class="meta">${a.proxy?'proxy':'direct'} · ${a.active_count}/${a.max_concurrent} · up ${h}h ${m}m · ${fmt(a.total_points)} pts${cycMeta}</span>`);
+    h3.append(' ', hint('This account. "direct/proxy" = connection type, "2/2" = streamers watched / max concurrent, '+
+      '"up" = time since this account started, then its total points. '+
+      (cyc.enabled ? 'In cycle mode it also shows which group is active and the countdown to the next switch. ' : '')+
+      'Cards below: green = watching (earning), orange = live but queued, grey = offline'+
+      (cyc.enabled ? ', dimmed = not in the current cycle group.' : '.')));
+    wrap.appendChild(h3);
     const win = (cyc.enabled && cyc.window) ? new Set(cyc.window) : null;
     const g=el('div','cards');
     (a.streamer_order||Object.keys(a.streamers||{})).forEach(n=>{
@@ -441,14 +467,20 @@ function renderConfig(){
   // ---- watch mode ----
   const cy=CFG.cycle||{enabled:false,interval_minutes:15};
   const wm=el('div','cfgacc');
-  wm.appendChild(el('div','head','<span class="alias">Watch mode</span>'));
+  const wmHead=el('div','head'); wmHead.appendChild(el('span','alias','Watch mode'));
+  wmHead.append(' ', hint('How the miner chooses which streamers to watch out of your list. '+
+    'Priority: it always watches the highest streamers on the list that are live, up to "max concurrent", and only drops one when it goes offline. '+
+    'Cycle: it ignores priority and rotates — watches the first group for N minutes, then the next group, wrapping around, so every streamer gets watched in turn.'));
+  wm.appendChild(wmHead);
   const modeSel=el('select');
   [['order','Priority — top live streamers, kept until they go offline'],
    ['cycle','Cycle — rotate through the list in groups every N minutes']]
    .forEach(([v,l])=>{ const o=el('option'); o.value=v; o.textContent=l; modeSel.appendChild(o); });
   modeSel.value = cy.enabled ? 'cycle' : 'order';
   const iv=el('input'); iv.type='number'; iv.min=5; iv.max=120; iv.value=cy.interval_minutes;
-  const ivWrap=el('label','limit','switch every '); ivWrap.appendChild(iv); ivWrap.appendChild(document.createTextNode(' min'));
+  const ivWrap=el('label','limit'); ivWrap.append(labeled('switch every',
+    'Cycle mode only: minutes each group of streamers is watched before rotating to the next group. 5–120.'));
+  ivWrap.appendChild(iv); ivWrap.appendChild(document.createTextNode(' min'));
   ivWrap.style.display = cy.enabled ? 'flex' : 'none';
   modeSel.onchange=()=>{ ivWrap.style.display = modeSel.value==='cycle' ? 'flex' : 'none'; };
   const wmSave=el('button','btn','Save mode'); wmSave.type='button';
@@ -461,11 +493,14 @@ function renderConfig(){
     const w=el('div','cfgacc');
     const head=el('div','head');
     head.appendChild(el('span','alias',acc.alias));
-    const lim=el('label','limit','max concurrent ');
+    const lim=el('label','limit'); lim.append(labeled('max concurrent',
+      'How many of this account’s streamers to watch at the same time. Kick accrues points per open stream, so 2 means two streamers earn at once. In cycle mode this is also the group size.'));
     const inp=el('input'); inp.type='number'; inp.min=1; inp.max=50; inp.value=acc.max_concurrent;
     inp.onchange=()=>cfgAction({action:'set_limit',account:acc.alias,max_concurrent:+inp.value});
     lim.appendChild(inp); head.appendChild(lim);
     const ra=el('button','btn danger rm-acct','Remove account'); ra.type='button'; ra.disabled=!many;
+    ra.title = many ? 'Delete this account and its streamer list from config.json. Applies on Restart.'
+                    : 'You can’t remove the last account — the miner needs at least one.';
     ra.onclick=()=>{ if(confirm('Remove account "'+acc.alias+'" from the miner?')) cfgAction({action:'remove_account',account:acc.alias}); };
     head.appendChild(ra);
     w.appendChild(head);
@@ -478,7 +513,10 @@ function renderConfig(){
     if(tv===true)  badge=`<span class="tbadge ok">token valid${live.token_username?' · '+live.token_username:''}</span>`;
     if(tv===false) badge='<span class="tbadge bad">token invalid / expired</span>';
     trow.innerHTML=`${badge}<span class="thint">${acc.token_hint||'no token'}</span>`;
+    trow.append(hint('The Kick bearer token this account logs in with. The badge shows whether Kick still accepts it; '+
+      '"invalid / expired" means you need a fresh one. Only a masked hint of the stored token is ever shown here.'));
     const tb=el('button','btn ghost','Update token'); tb.type='button';
+    tb.title='Paste a new Kick bearer token (format 123456|abcdef…). Get it from your browser: F12 → Network → any kick.com request → Request Headers → authorization.';
     tb.onclick=()=>{
       const v=prompt('Paste the new Kick bearer token for "'+acc.alias+'"\n(format 123456|abcdef… — from F12 → Network → authorization header)');
       if(v && v.trim()) cfgAction({action:'set_token',account:acc.alias,token:v.trim()});
@@ -486,8 +524,15 @@ function renderConfig(){
     trow.appendChild(tb);
     w.appendChild(trow);
 
+    const slbl=el('div','limit'); slbl.style.marginBottom='6px';
+    slbl.append(labeled('Streamers',
+      'The channels this account farms. Drag the ⠿ handle to reorder — in Priority mode the top of the list is watched first; '+
+      'in Cycle mode the list is split top-to-bottom into groups of "max concurrent".'));
+    w.appendChild(slbl);
+
     const f=el('form','addf');
     const ai=el('input'); ai.placeholder='add kick channel (name from kick.com/…)'; ai.maxLength=40; ai.autocomplete='off';
+    ai.title='Enter the channel name exactly as it appears in its URL: kick.com/THIS-PART. No spaces, no @.';
     const ab=el('button','btn','Add'); ab.type='submit';
     f.appendChild(ai); f.appendChild(ab);
     f.onsubmit=e=>{e.preventDefault(); const v=ai.value.trim(); if(v) cfgAction({action:'add',account:acc.alias,streamer:v});};
@@ -496,7 +541,8 @@ function renderConfig(){
     const list=el('div','slist-cfg'); list.dataset.account=acc.alias;
     acc.streamers.forEach((n,i)=>{
       const it=el('div','sitem'); it.dataset.name=n;
-      it.appendChild(el('span','grip','⠿'));
+      const grip=el('span','grip','⠿'); grip.title='Drag to reorder — changes watch priority (or the cycle grouping).';
+      it.appendChild(grip);
       it.appendChild(el('span','idx','#'+i));
       it.appendChild(el('span','nm',n));
       const rm=el('button','btn danger','Remove'); rm.type='button';
@@ -520,10 +566,15 @@ function renderConfig(){
 
   // --- add account ---
   const add=el('div','add-acct');
-  add.appendChild(el('h4','','Add a Kick account'));
+  const ah=el('h4','','Add a Kick account'); ah.append(' ', hint(
+    'Farm a second Kick account in parallel. Each account has its own token, streamer list and "max concurrent". '+
+    'Give it any name you like — it is just a label in this dashboard.'));
+  add.appendChild(ah);
   const af=el('form','row2');
   const na=el('input'); na.placeholder='account name (e.g. Alt)'; na.maxLength=40;
+  na.title='Just a label shown in the dashboard — pick anything.';
   const nt=el('input'); nt.placeholder='bearer token  123456|abcdef…'; nt.autocomplete='off';
+  nt.title='The new account’s Kick bearer token (F12 → Network → authorization header while logged in as that account).';
   const nb=el('button','btn','Add account'); nb.type='submit';
   af.appendChild(na); af.appendChild(nt); af.appendChild(nb);
   af.onsubmit=e=>{e.preventDefault(); if(na.value.trim()&&nt.value.trim())
@@ -534,11 +585,16 @@ function renderConfig(){
 
 /* ---- notifications editor ---- */
 const NOPEN = (window._nopen = window._nopen || {telegram:true, discord:true});
-function _field(label, node){
-  const w=el('label','nf'); w.appendChild(el('span','nf-l',label)); w.appendChild(node); return w;
+function _field(label, node, tip){
+  const w=el('label','nf'); const l=el('span','nf-l'); l.append(label);
+  if(tip) l.append(' ', hint(tip));
+  w.appendChild(l); w.appendChild(node); return w;
 }
-const NFLAGS=[['notify_points','Points gains'],['notify_status_change','Online / offline'],
-              ['notify_errors','Errors / token expired'],['notify_startup','Start / stop']];
+const NFLAGS=[
+  ['notify_points','Points gains','Message every time a watched streamer earns you points (respects the "Min points gain" threshold below).'],
+  ['notify_status_change','Online / offline','Message when a streamer on your list goes live or ends the stream.'],
+  ['notify_errors','Errors / token expired','Message when a Kick token stops working or the miner hits a repeated error — the important one to keep on.'],
+  ['notify_startup','Start / stop','Message when the miner process starts up or shuts down.']];
 
 function _notifBlock(id, title, cfg, secretLabel, secretPlaceholder, extra, buildAction){
   const d=el('details','nfblock'); d.open = NOPEN[id];
@@ -547,19 +603,23 @@ function _notifBlock(id, title, cfg, secretLabel, secretPlaceholder, extra, buil
   d.appendChild(sum);
 
   const en=el('input'); en.type='checkbox'; en.checked=cfg.enabled;
-  d.appendChild(_field('Enabled', en));
+  d.appendChild(_field('Enabled', en,
+    'Master switch for this channel. Off = the miner never contacts '+title.split(' ')[0]+', even if a token is stored.'));
   const sec=el('input'); sec.type='password'; sec.autocomplete='off';
   const stored = id==='telegram' ? cfg.has_token : cfg.has_webhook;
-  const hint = id==='telegram' ? cfg.token_hint : cfg.webhook_hint;
-  sec.placeholder = stored ? ('stored ('+hint+') — leave blank to keep') : secretPlaceholder;
-  d.appendChild(_field(secretLabel, sec));
+  const hintText = id==='telegram' ? cfg.token_hint : cfg.webhook_hint;
+  sec.placeholder = stored ? ('stored ('+hintText+') — leave blank to keep') : secretPlaceholder;
+  d.appendChild(_field(secretLabel, sec, id==='telegram'
+    ? 'Open a chat with @BotFather on Telegram, send /newbot, and paste the token it gives you (looks like 123456789:AA…). Stored only in your config.json; leave blank to keep the current one.'
+    : 'In Discord: Server Settings → Integrations → Webhooks → New Webhook → Copy Webhook URL. Stored only in your config.json; leave blank to keep the current one.'));
 
   const ex = extra(d);   // block-specific fields, returns {} of getters
 
   const mn=el('input'); mn.type='number'; mn.min=0; mn.value=cfg.min_points_gain;
-  d.appendChild(_field('Min points gain', mn));
+  d.appendChild(_field('Min points gain', mn,
+    'Only send a "points gain" message when the gain is at least this many points. Set higher to cut noise; 1 = every gain.'));
   const fl={};
-  NFLAGS.forEach(([k,lbl])=>{ const c=el('input'); c.type='checkbox'; c.checked=cfg[k]; fl[k]=c; d.appendChild(_field(lbl,c)); });
+  NFLAGS.forEach(([k,lbl,tip])=>{ const c=el('input'); c.type='checkbox'; c.checked=cfg[k]; fl[k]=c; d.appendChild(_field(lbl,c,tip)); });
 
   const save=el('button','btn','Save '+title.split(' ')[0]); save.type='button';
   save.onclick=()=>cfgAction(buildAction({en, sec, mn, fl, ex}), 'notif');
@@ -575,7 +635,8 @@ function renderNotif(){
     'Bot token', '123456789:AA…  (from @BotFather)',
     (d)=>{ const chat=el('input'); chat.value=CFG.telegram.chat_id||'';
            chat.placeholder='your numeric user id (@userinfobot)';
-           d.appendChild(_field('Owner chat id', chat)); return {chat}; },
+           d.appendChild(_field('Owner chat id', chat,
+             'The only Telegram account that gets messages and may command the bot. Message @userinfobot to get your numeric id. Leave blank and the first person to send /start to the bot claims it.')); return {chat}; },
     ({en,sec,mn,fl,ex})=>({action:'set_telegram', enabled:en.checked,
       bot_token:sec.value.trim(), chat_id:ex.chat.value.trim(), min_points_gain:+mn.value,
       notify_points:fl.notify_points.checked, notify_status_change:fl.notify_status_change.checked,
