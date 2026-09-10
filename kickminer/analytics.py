@@ -13,16 +13,15 @@ from pathlib import Path
 
 from loguru import logger
 
-# relative to the working directory the miner is launched from
-_DATA_DIR = Path("data")
+from .paths import ANALYTICS_DB
 
 
 class Analytics:
     def __init__(self, path: str | Path | None = None, *, retention_days: int = 30):
-        self.path = Path(path) if path else _DATA_DIR / "analytics.sqlite3"
+        self.path = Path(path) if path else ANALYTICS_DB
         self.retention_days = retention_days
         self._lock = threading.Lock()
-        self.path.parent.mkdir(exist_ok=True)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
 
         self._db = sqlite3.connect(
             self.path, check_same_thread=False, isolation_level=None

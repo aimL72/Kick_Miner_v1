@@ -22,8 +22,9 @@ from kickminer.i18n import load_language, t
 from kickminer.logging_setup import setup_logging
 from kickminer.manager import AccountManager
 from kickminer.notifiers import DiscordNotifier, TelegramBot
+from kickminer.paths import CONFIG_PATH
 
-_CONFIG_PATH = "config.json"
+_CONFIG_PATH = str(CONFIG_PATH)
 _RESTART_DELAY = 5
 
 
@@ -124,12 +125,35 @@ async def _run_once(
         raise KeyboardInterrupt
 
 
+def _bootstrap_config() -> None:
+    """First run in a container: drop a config.json template into the volume."""
+
+    import shutil
+    from pathlib import Path
+
+    target = Path(_CONFIG_PATH)
+    example = Path(__file__).with_name("config.example.json")
+    if not target.exists() and example.exists():
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(example, target)
+        logger.warning(
+            f"No config found - wrote a template to {target}. "
+            "Edit it (tokens, streamers) and restart the container."
+        )
+
+
 def main() -> int:
     setup_logging(debug=False)
+    _bootstrap_config()
     try:
         cfg = load_config(_CONFIG_PATH)
     except ConfigError as exc:
         logger.error(str(exc))
+        logger.error(f"Fix {_CONFIG_PATH} and restart. Waiting 30s …")
+        try:
+            time.sleep(30)  # keep a container restart loop calm
+        except KeyboardInterrupt:
+            pass
         return 2
 
     setup_logging(debug=cfg.debug)

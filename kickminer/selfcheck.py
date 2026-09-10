@@ -22,6 +22,7 @@ from .http_client import KickHttpClient
 from .i18n import load_language
 from .kick_api import KickApi
 from .logging_setup import setup_logging
+from .paths import CONFIG_PATH
 
 
 def _run(slug: str, account_alias: str | None, config_path: str) -> int:
@@ -85,7 +86,7 @@ def main(argv: list[str] | None = None) -> int:
         "--account",
         help="alias from config.json - also tests points + WS token",
     )
-    parser.add_argument("--config", default="config.json")
+    parser.add_argument("--config", default=str(CONFIG_PATH))
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--lang", default="en")
     args = parser.parse_args(argv)

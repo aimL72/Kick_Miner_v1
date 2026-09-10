@@ -1,16 +1,17 @@
 services:
   kick-miner:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: kick-channel-points-miner
     container_name: kick-miner
+    # Pull the pre-built multi-arch image (GitHub Actions -> GHCR):
+    image: ghcr.io/aiml72/kick_miner_v1:latest
+    # ...or build from this checkout instead - comment out `image:` above and
+    # uncomment the next two lines:
+    # build:
+    #   context: .
     restart: unless-stopped
-    volumes:
-      - ${CONFIG_FILE:-./config.json}:/app/config.json:ro
-      - ./logs:/app/logs
-      - ./data:/app/data
     ports:
       - "5000:5000"
+    volumes:
+      # config.json, logs/ and data/ all live in here (one directory)
+      - ./data:/data
     environment:
-      - PYTHONUNBUFFERED=1
+      - KICK_MINER_DATA=/data

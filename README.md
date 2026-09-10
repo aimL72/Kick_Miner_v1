@@ -104,11 +104,33 @@ Then open `http://localhost:5000`.
 
 ### Docker
 
+Everything mutable (`config.json`, `logs/`, `data/`) lives in **one** mounted
+directory (`/data` inside the container, `KICK_MINER_DATA`).
+
 ```bash
-docker compose up -d --build
+mkdir -p data
+docker compose up -d          # pulls ghcr.io/aiml72/kick_miner_v1:latest
 ```
 
-`config.json` is bind-mounted read-only; `logs/` and `data/` are persisted.
+On first start it drops a `data/config.json` template — edit it (tokens,
+streamers) and `docker compose restart`.
+
+To build from this checkout instead of pulling: edit `docker-compose.yml`
+(comment `image:`, uncomment `build:`), then `docker compose up -d --build`.
+
+### ZimaOS / CasaOS
+
+1. In the app store choose **Install a custom app** → **Import** and paste the
+   contents of [`docker-compose.yml`](docker-compose.yml).
+2. Change the volume line `./data:/data` to a real path on the NAS, e.g.
+   `/DATA/AppData/kick-miner:/data`.
+3. Start it once, then open the ZimaOS file manager, edit
+   `/DATA/AppData/kick-miner/config.json` (tokens + streamers), and restart the
+   app.
+4. Dashboard: `http://<nas-ip>:5000`.
+
+The image is multi-arch (amd64 + arm64) and rebuilt by GitHub Actions on every
+push to `main`.
 
 ## Telegram setup
 

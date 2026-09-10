@@ -22,9 +22,10 @@ from flask import Flask, jsonify, request
 from loguru import logger
 
 from ..config_editor import ConfigEditError, apply_action, read_editable
+from ..paths import LOG_DIR
 
 _TEMPLATE_PATH = Path(__file__).parent / "dashboard.html"
-_LOG_PATH = Path("logs") / "kickminer.log"
+_LOG_PATH = LOG_DIR / "kickminer.log"
 _MAX_LOG_TAIL = 512 * 1024
 
 

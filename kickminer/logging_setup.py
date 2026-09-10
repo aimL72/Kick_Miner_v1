@@ -7,12 +7,10 @@
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 
 from loguru import logger
 
-# relative to the working directory the miner is launched from
-_LOG_DIR = Path("logs")
+from .paths import LOG_DIR as _LOG_DIR
 
 _CONSOLE_FORMAT = (
     "<green>{time:YYYY-MM-DD HH:mm:ss}</green> "
@@ -39,7 +37,7 @@ def setup_logging(debug: bool = False) -> None:
         diagnose=False,
     )
 
-    _LOG_DIR.mkdir(exist_ok=True)
+    _LOG_DIR.mkdir(parents=True, exist_ok=True)
     logger.add(
         _LOG_DIR / "kickminer.log",
         level="DEBUG",
