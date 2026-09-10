@@ -150,6 +150,11 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
+## Änderungsverlauf
+
+Der vollständige Verlauf aller Änderungen steht in [CHANGELOG.md](CHANGELOG.md)
+(auf Englisch).
+
 ## Danksagungen
 
 * [Baillora/Kick_Channel_Points_Miner](https://github.com/Baillora/Kick_Channel_Points_Miner)

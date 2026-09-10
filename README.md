@@ -146,6 +146,10 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for the full history of changes.
+
 ## Credits
 
 * [Baillora/Kick_Channel_Points_Miner](https://github.com/Baillora/Kick_Channel_Points_Miner)
