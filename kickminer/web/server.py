@@ -21,6 +21,8 @@ from pathlib import Path
 from flask import Flask, jsonify, request
 from loguru import logger
 
+import os
+
 from ..config_editor import ConfigEditError, apply_action, read_editable
 from ..paths import LOG_DIR
 
@@ -30,15 +32,25 @@ _MAX_LOG_TAIL = 512 * 1024
 
 
 def start_dashboard(
-    get_manager,
+    holder,
     analytics,
     port: int = 5000,
     *,
     config_path: str = "config.json",
-    on_config_change=None,
+    request_restart=None,
 ) -> None:
-    """``get_manager`` is a callable returning the current AccountManager
-    (it is replaced on every supervisor restart)."""
+    """``holder`` is callable -> current AccountManager (replaced on every
+    supervisor restart) and carries ``.config_mtime`` (config.json's mtime when
+    that manager was built). ``request_restart`` triggers a supervisor restart.
+    Config edits are saved but NOT applied until a restart is requested."""
+
+    get_manager = holder
+
+    def _config_dirty() -> bool:
+        try:
+            return os.path.getmtime(config_path) > (getattr(holder, "config_mtime", 0) or 0)
+        except OSError:
+            return False
 
     app = Flask(__name__, static_folder="static", static_url_path="/static")
     logging.getLogger("werkzeug").setLevel(logging.ERROR)
@@ -75,6 +87,8 @@ def start_dashboard(
                 "grand_total": grand_total,
                 "session_gain": session_gain,
                 "history_streamers": analytics.streamers() if analytics else [],
+                "config_dirty": _config_dirty(),
+                "running": get_manager() is not None,
             }
         )
 
@@ -111,12 +125,17 @@ def start_dashboard(
             logger.exception("config edit failed")
             return jsonify({"error": f"Could not apply edit: {exc}"}), 500
 
-        restarting = False
-        if on_config_change is not None:
-            on_config_change()
-            restarting = True
-        logger.info(f"dashboard applied config action: {payload.get('action')}")
-        return jsonify({"ok": True, "config": updated, "restarting": restarting})
+        logger.info(f"dashboard saved config action: {payload.get('action')}")
+        # saved to disk; NOT applied until the user hits Restart
+        return jsonify({"ok": True, "config": updated, "dirty": _config_dirty()})
+
+    @app.route("/api/restart", methods=["POST"])
+    def api_restart():
+        if request_restart is None:
+            return jsonify({"error": "Restart is not available."}), 409
+        request_restart()
+        logger.info("dashboard requested a restart")
+        return jsonify({"ok": True})
 
     @app.route("/api/log")
     def api_log():

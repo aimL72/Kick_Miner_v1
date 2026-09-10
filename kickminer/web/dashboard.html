@@ -22,6 +22,14 @@
   header .ver{color:var(--muted);font-size:11px}
   header .spacer{flex:1}
   header .clock{color:var(--muted);font-size:12px}
+  .restart{background:var(--panel2);border:1px solid var(--border);color:var(--fg2);
+           font-weight:700;border-radius:8px;padding:7px 16px;cursor:pointer;font-size:13px}
+  .restart:hover{border-color:var(--accent);color:var(--fg)}
+  .restart.pending{background:var(--accent);color:#1a1a1a;border-color:var(--accent);animation:glow 1.6s infinite}
+  @keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(249,130,108,.5)}50%{box-shadow:0 0 0 6px rgba(249,130,108,0)}}
+  .dirtybar{background:var(--accent-dim);border:1px solid var(--accent);color:var(--fg);
+            border-radius:9px;padding:9px 14px;margin-bottom:14px;font-size:13px}
+  .dirtybar b{color:var(--accent)}
 
   .stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
   .stat{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px 16px;min-width:104px;flex:1}
@@ -123,6 +131,15 @@
   .add-acct .row2{display:flex;gap:6px;flex-wrap:wrap}
   .add-acct input{flex:1;min-width:150px;background:var(--panel2);border:1px solid var(--border);
                   color:var(--fg);border-radius:7px;padding:7px 10px;font-size:13px}
+  .nfblock{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px}
+  .nfblock h4{font-size:13px;color:var(--accent);margin-bottom:12px}
+  .nf{display:flex;align-items:center;gap:10px;margin-bottom:9px;font-size:13px;color:var(--fg2)}
+  .nf-l{width:130px;flex-shrink:0}
+  .nf input[type=text],.nf input[type=password],.nf input[type=number]{flex:1;background:var(--bg);
+       border:1px solid var(--border);color:var(--fg);border-radius:6px;padding:6px 9px;font-size:13px}
+  .nf input{background:var(--bg);border:1px solid var(--border);color:var(--fg);border-radius:6px;padding:6px 9px;font-size:13px}
+  .nf input[type=checkbox]{flex:none;width:auto}
+  .nfblock button.btn{margin-top:6px}
   .err{color:var(--red);font-size:12px;margin-top:6px;min-height:16px}
 
   /* log tab */
@@ -138,8 +155,13 @@
     <h1><span class="k">KICK</span> MINER</h1>
     <span class="ver" id="ver"></span>
     <span class="spacer"></span>
+    <button id="restartbtn" class="restart">Restart</button>
     <span class="clock">updated <span id="clock">--:--:--</span></span>
   </header>
+
+  <div id="dirtybar" class="dirtybar" hidden>
+    Configuration changed — click <b>Restart</b> to apply it.
+  </div>
 
   <div class="stats" id="stats"></div>
   <div class="nowwatch" id="nowwatch">Not watching anything yet.</div>
@@ -147,6 +169,7 @@
   <div class="tabs">
     <button data-tab="points" class="on">Points</button>
     <button data-tab="config">Config</button>
+    <button data-tab="notif">Notifications</button>
     <button data-tab="log">Log</button>
   </div>
 
@@ -176,9 +199,18 @@
   <!-- CONFIG -->
   <section id="tab-config" hidden>
     <div class="box">
-      <div class="cfgnote">⚠ Saving a change restarts the miner (a few seconds of downtime).</div>
+      <div class="cfgnote">Edits are saved immediately. They take effect when you press the <b>Restart</b> button (top right).</div>
       <div id="cfgmsg" hidden></div>
       <div id="cfgbody"></div>
+    </div>
+  </section>
+
+  <!-- NOTIFICATIONS -->
+  <section id="tab-notif" hidden>
+    <div class="box">
+      <div class="cfgnote">Tokens are stored only in your config.json (the mounted volume) — never in the image or repo. Press <b>Restart</b> (top right) to apply changes.</div>
+      <div id="notifmsg" hidden></div>
+      <div id="notifbody"></div>
     </div>
   </section>
 
@@ -208,14 +240,26 @@ let TAB='points', PICK=null, RANGE=24, DATA=null, LOGPAUSE=false;
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
   TAB=b.dataset.tab;
   document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));
-  for(const t of ['points','config','log']) $('#tab-'+t).hidden = (t!==TAB);
-  if(TAB==='config') loadConfig();
+  for(const t of ['points','config','notif','log']) $('#tab-'+t).hidden = (t!==TAB);
+  if(TAB==='config'||TAB==='notif') loadConfig();
   if(TAB==='log') pullLog();
 });
+
+/* ---- restart button ---- */
+$('#restartbtn').onclick=async()=>{
+  if(!confirm('Restart the miner now to apply the saved configuration?')) return;
+  $('#restartbtn').textContent='Restarting…'; $('#restartbtn').disabled=true;
+  try{ await fetch('/api/restart',{method:'POST'}); }catch(e){}
+  setTimeout(()=>{$('#restartbtn').textContent='Restart';$('#restartbtn').disabled=false;}, 6000);
+};
 
 /* ---- stats + now-watching + cards ---- */
 function renderData(d){
   DATA=d;
+  const dirty = !!d.config_dirty;
+  $('#dirtybar').hidden = !dirty;
+  $('#restartbtn').classList.toggle('pending', dirty);
+
   let watching=0, online=0;
   for(const a of d.accounts||[]) for(const s of Object.values(a.streamers||{})){
     if(s.watching) watching++; else if(s.online) online++;
@@ -339,10 +383,10 @@ $('#chart').addEventListener('mouseleave',()=>{
 let CFG=null, BUSY=false;
 async function loadConfig(){
   try{ CFG=await (await fetch('/api/config')).json(); }catch(e){return;}
-  renderConfig();
+  renderConfig(); renderNotif();
 }
-function cfgMsg(text, kind){
-  const m=$('#cfgmsg');
+function _msg(id, text, kind){
+  const m=$('#'+id);
   if(!text){ m.hidden=true; return; }
   m.hidden=false; m.textContent=text;
   m.style.cssText='margin-bottom:14px;padding:9px 12px;border-radius:8px;font-size:13px;font-weight:600;'+
@@ -350,16 +394,20 @@ function cfgMsg(text, kind){
       ? 'background:rgba(240,71,71,.15);color:var(--red);border:1px solid rgba(240,71,71,.4)'
       : 'background:var(--green-dim);color:var(--green);border:1px solid rgba(83,252,24,.35)');
 }
-async function cfgAction(body){
-  if(BUSY)return; BUSY=true; cfgMsg('');
-  document.querySelectorAll('#cfgbody button,#cfgbody input').forEach(x=>x.disabled=true);
+const cfgMsg = (t,k)=>_msg('cfgmsg',t,k);
+const notifMsg = (t,k)=>_msg('notifmsg',t,k);
+
+async function cfgAction(body, scope){
+  scope=scope||'cfg';
+  if(BUSY)return; BUSY=true; _msg(scope+'msg','');
+  document.querySelectorAll('#'+(scope==='notif'?'notifbody':'cfgbody')+' button,#'+(scope==='notif'?'notifbody':'cfgbody')+' input').forEach(x=>x.disabled=true);
   try{
     const r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const j=await r.json();
-    if(!r.ok){ cfgMsg(j.error||'Edit rejected.','err'); }
-    else{ CFG=j.config; cfgMsg(j.restarting?'Saved — miner restarting…':'Saved.','ok'); }
-  }catch(e){ cfgMsg('Request failed — is the miner up?','err'); }
-  BUSY=false; renderConfig();
+    if(!r.ok){ _msg(scope+'msg', j.error||'Edit rejected.','err'); }
+    else{ CFG=j.config; _msg(scope+'msg','Saved — hit Restart to apply.','ok'); }
+  }catch(e){ _msg(scope+'msg','Request failed — is the miner up?','err'); }
+  BUSY=false; renderConfig(); renderNotif();
 }
 function renderConfig(){
   const body=$('#cfgbody'); body.innerHTML='';
@@ -439,6 +487,60 @@ function renderConfig(){
     cfgAction({action:'add_account',alias:na.value.trim(),token:nt.value.trim()});};
   add.appendChild(af);
   body.appendChild(add);
+}
+
+/* ---- notifications editor ---- */
+function _field(label, node){
+  const w=el('label','nf'); w.appendChild(el('span','nf-l',label)); w.appendChild(node); return w;
+}
+function renderNotif(){
+  const body=$('#notifbody'); if(!body) return; body.innerHTML='';
+  if(!CFG||!CFG.telegram){ body.textContent='Loading…'; return; }
+
+  // ---- Telegram ----
+  const tg=CFG.telegram;
+  const tb=el('div','nfblock');
+  tb.appendChild(el('h4','','Telegram bot'));
+  const tEn=el('input'); tEn.type='checkbox'; tEn.checked=tg.enabled;
+  tb.appendChild(_field('Enabled', tEn));
+  const tTok=el('input'); tTok.type='password'; tTok.autocomplete='off';
+  tTok.placeholder = tg.has_token ? 'stored ('+tg.token_hint+') — leave blank to keep' : '123456789:AA…  (from @BotFather)';
+  tb.appendChild(_field('Bot token', tTok));
+  const tChat=el('input'); tChat.value=tg.chat_id||''; tChat.placeholder='your numeric user id (@userinfobot)';
+  tb.appendChild(_field('Owner chat id', tChat));
+  const tUsers=el('input'); tUsers.value=(tg.allowed_users||[]).join(', '); tUsers.placeholder='extra viewer ids, comma-separated (optional)';
+  tb.appendChild(_field('Allowed users', tUsers));
+  const tSave=el('button','btn','Save Telegram'); tSave.type='button';
+  tSave.onclick=()=>cfgAction({action:'set_telegram', enabled:tEn.checked,
+    bot_token:tTok.value.trim(), chat_id:tChat.value.trim(),
+    allowed_users:tUsers.value.split(',').map(s=>s.trim()).filter(Boolean)}, 'notif');
+  tb.appendChild(tSave);
+  body.appendChild(tb);
+
+  // ---- Discord ----
+  const dc=CFG.discord;
+  const db=el('div','nfblock');
+  db.appendChild(el('h4','','Discord webhook'));
+  const dEn=el('input'); dEn.type='checkbox'; dEn.checked=dc.enabled;
+  db.appendChild(_field('Enabled', dEn));
+  const dHook=el('input'); dHook.type='password'; dHook.autocomplete='off';
+  dHook.placeholder = dc.has_webhook ? 'stored ('+dc.webhook_hint+') — leave blank to keep' : 'https://discord.com/api/webhooks/…';
+  db.appendChild(_field('Webhook URL', dHook));
+  const dUser=el('input'); dUser.value=dc.username||''; dUser.placeholder='bot display name';
+  db.appendChild(_field('Username', dUser));
+  const dMin=el('input'); dMin.type='number'; dMin.min=0; dMin.value=dc.min_points_gain;
+  db.appendChild(_field('Min points gain', dMin));
+  const flags=[['notify_points','Points gains'],['notify_status_change','Online / offline'],
+               ['notify_errors','Errors'],['notify_startup','Start / stop']];
+  const fl={};
+  flags.forEach(([k,lbl])=>{ const c=el('input'); c.type='checkbox'; c.checked=dc[k]; fl[k]=c; db.appendChild(_field(lbl,c)); });
+  const dSave=el('button','btn','Save Discord'); dSave.type='button';
+  dSave.onclick=()=>cfgAction({action:'set_discord', enabled:dEn.checked,
+    webhook_url:dHook.value.trim(), username:dUser.value, min_points_gain:+dMin.value,
+    notify_points:fl.notify_points.checked, notify_status_change:fl.notify_status_change.checked,
+    notify_errors:fl.notify_errors.checked, notify_startup:fl.notify_startup.checked}, 'notif');
+  db.appendChild(dSave);
+  body.appendChild(db);
 }
 
 /* ---- log ---- */

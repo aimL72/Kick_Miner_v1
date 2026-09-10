@@ -42,13 +42,13 @@ def test_read_editable_masks_real_token(tmp_path):
     p = tmp_path / "config.json"
     p.write_text(
         json.dumps(
-            {"Accounts": [{"alias": "M", "token": "403837437|WPplzqAAAABBBBCCCCDddd", "streamers": ["x"]}]}
+            {"Accounts": [{"alias": "M", "token": "12345678|SECRETsecretSECRETsecret", "streamers": ["x"]}]}
         ),
         encoding="utf-8",
     )
     hint = read_editable(p)["accounts"][0]["token_hint"]
-    assert hint == "403837437|…Dddd"
-    assert "WPplzq" not in hint
+    assert hint == "12345678|…cret"
+    assert "SECRETsecret" not in hint
 
 
 def test_set_token(tmp_path):
@@ -148,3 +148,62 @@ def test_remove_last_account_refused(tmp_path):
     p = _cfg(tmp_path)
     with pytest.raises(ConfigEditError):
         apply_action(p, {"action": "remove_account", "account": "Main"})
+
+
+def test_read_editable_notifications_masked(tmp_path):
+    p = tmp_path / "config.json"
+    p.write_text(json.dumps({
+        "Accounts": [{"alias": "M", "token": "1|aaaaaaaaaaaaaaaaaaaa", "streamers": ["x"]}],
+        "Telegram": {"enabled": True, "bot_token": "123456789:AAbcdefghabcdefghabcdefghabcdefghXYZ", "chat_id": "999"},
+        "Discord": {"enabled": True, "webhook_url": "https://discord.com/api/webhooks/111/longsecrettokenvalue0000", "min_points_gain": 5},
+    }), encoding="utf-8")
+    ed = read_editable(p)
+    assert ed["telegram"]["enabled"] is True
+    assert ed["telegram"]["chat_id"] == "999"
+    assert ed["telegram"]["has_token"] is True
+    assert "AAbcdefgh" not in ed["telegram"]["token_hint"]
+    assert len(ed["telegram"]["token_hint"]) <= 8
+    assert ed["discord"]["min_points_gain"] == 5
+    assert ed["discord"]["has_webhook"] is True
+    assert "longsecrettokenvalue" not in ed["discord"]["webhook_hint"]
+    assert "bot_token" not in ed["telegram"] and "webhook_url" not in ed["discord"]
+
+
+def _base_cfg(tmp_path):
+    p = tmp_path / "config.json"
+    p.write_text(json.dumps({"Accounts": [{"alias": "M", "token": "1|aaaaaaaaaaaaaaaaaaaa", "streamers": ["x"]}]}), encoding="utf-8")
+    return p
+
+
+def test_set_telegram(tmp_path):
+    p = _base_cfg(tmp_path)
+    tok = "123456789:AAbcdefghabcdefghabcdefghabcdefghXYZ"
+    apply_action(p, {"action": "set_telegram", "enabled": True, "bot_token": tok,
+                     "chat_id": "42", "allowed_users": ["7", "bad", "9"]})
+    raw = json.loads(p.read_text())["Telegram"]
+    assert raw["enabled"] is True and raw["bot_token"] == tok
+    assert raw["chat_id"] == "42" and raw["allowed_users"] == [7, 9]
+    # toggle off without re-sending the token keeps it
+    apply_action(p, {"action": "set_telegram", "enabled": False, "bot_token": ""})
+    assert json.loads(p.read_text())["Telegram"]["bot_token"] == tok
+    assert json.loads(p.read_text())["Telegram"]["enabled"] is False
+
+
+def test_set_telegram_rejects_bad_token_and_enable_without_token(tmp_path):
+    p = _base_cfg(tmp_path)
+    with pytest.raises(ConfigEditError):
+        apply_action(p, {"action": "set_telegram", "enabled": True, "bot_token": "nope"})
+    with pytest.raises(ConfigEditError):
+        apply_action(p, {"action": "set_telegram", "enabled": True, "bot_token": ""})
+
+
+def test_set_discord(tmp_path):
+    p = _base_cfg(tmp_path)
+    hook = "https://discord.com/api/webhooks/1/abcdef"
+    apply_action(p, {"action": "set_discord", "enabled": True, "webhook_url": hook,
+                     "username": "Miner", "min_points_gain": 3, "notify_startup": False})
+    dc = json.loads(p.read_text())["Discord"]
+    assert dc["enabled"] and dc["webhook_url"] == hook and dc["username"] == "Miner"
+    assert dc["min_points_gain"] == 3 and dc["notify_startup"] is False
+    with pytest.raises(ConfigEditError):
+        apply_action(p, {"action": "set_discord", "enabled": True, "webhook_url": "http://evil.com/x"})

@@ -9,6 +9,7 @@ stops cleanly.
 from __future__ import annotations
 
 import asyncio
+import os
 import signal
 import sys
 import threading
@@ -33,10 +34,12 @@ class _RestartRequested(Exception):
 
 
 class _ManagerHolder:
-    """Lets the long-lived dashboard thread always see the current manager."""
+    """Lets the long-lived dashboard thread always see the current manager
+    and know whether config.json changed since that manager was built."""
 
     def __init__(self) -> None:
         self.current: AccountManager | None = None
+        self.config_mtime: float = 0.0
 
     def __call__(self) -> AccountManager | None:
         return self.current
@@ -63,7 +66,11 @@ async def _run_once(
     holder: _ManagerHolder,
     restart_flag: threading.Event,
 ) -> None:
-    cfg = load_config(_CONFIG_PATH)  # re-read: streamer edits land here
+    cfg = load_config(_CONFIG_PATH)  # re-read: dashboard edits land here
+    try:
+        holder.config_mtime = os.path.getmtime(_CONFIG_PATH)
+    except OSError:
+        holder.config_mtime = 0.0
     on_points_gain, on_status_change = _make_callbacks(discord, telegram)
     manager = AccountManager(
         cfg,
@@ -175,7 +182,7 @@ def main() -> int:
                 analytics,
                 cfg.web.port,
                 config_path=_CONFIG_PATH,
-                on_config_change=restart_flag.set,
+                request_restart=restart_flag.set,
             )
         except Exception as exc:  # noqa: BLE001
             logger.warning(f"Web dashboard failed to start: {exc}")
