@@ -40,6 +40,8 @@ class _ManagerHolder:
     def __init__(self) -> None:
         self.current: AccountManager | None = None
         self.config_mtime: float = 0.0
+        self.discord: DiscordNotifier | None = None
+        self.telegram: TelegramBot | None = None
 
     def __call__(self) -> AccountManager | None:
         return self.current
@@ -61,8 +63,6 @@ def _make_callbacks(discord: DiscordNotifier, telegram: TelegramBot):
 
 async def _run_once(
     analytics: Analytics,
-    discord: DiscordNotifier,
-    telegram: TelegramBot,
     holder: _ManagerHolder,
     restart_flag: threading.Event,
 ) -> None:
@@ -71,6 +71,13 @@ async def _run_once(
         holder.config_mtime = os.path.getmtime(_CONFIG_PATH)
     except OSError:
         holder.config_mtime = 0.0
+
+    # notifiers are rebuilt from the freshly-loaded config so the Restart
+    # button also applies Telegram / Discord changes
+    discord = DiscordNotifier(cfg.discord)
+    telegram = TelegramBot(cfg.telegram, request_restart=restart_flag.set)
+    holder.discord, holder.telegram = discord, telegram
+
     on_points_gain, on_status_change = _make_callbacks(discord, telegram)
     manager = AccountManager(
         cfg,
@@ -117,7 +124,10 @@ async def _run_once(
             task.cancel()
         await manager.stop()
         await telegram.stop()
-        holder.current = None
+        if stop.is_set():
+            discord.shutdown("stopped by user")
+        await asyncio.to_thread(discord.close)
+        holder.current = holder.discord = holder.telegram = None
         if not run_task.done():
             run_task.cancel()
         try:
@@ -170,8 +180,6 @@ def main() -> int:
     restart_flag = threading.Event()
     holder = _ManagerHolder()
     analytics = Analytics()
-    discord = DiscordNotifier(cfg.discord)
-    telegram = TelegramBot(cfg.telegram, request_restart=restart_flag.set)
 
     if cfg.web.enabled:
         try:
@@ -190,23 +198,19 @@ def main() -> int:
     try:
         while True:
             try:
-                asyncio.run(
-                    _run_once(analytics, discord, telegram, holder, restart_flag)
-                )
+                asyncio.run(_run_once(analytics, holder, restart_flag))
             except _RestartRequested:
                 logger.warning(t("app_restarting", seconds=1, reason="config change"))
                 time.sleep(1)
                 continue
             except KeyboardInterrupt:
                 logger.info(t("app_stopped_by_user"))
-                discord.shutdown("user stopped")
                 return 0
             except ConfigError as exc:
                 logger.error(str(exc))
                 return 2
             except Exception as exc:  # noqa: BLE001
                 logger.exception(t("app_fatal", error=str(exc)))
-                discord.error("system", "", str(exc))
 
             logger.warning(t("app_restarting", seconds=_RESTART_DELAY, reason="crash"))
             try:
@@ -214,7 +218,6 @@ def main() -> int:
             except KeyboardInterrupt:
                 return 0
     finally:
-        discord.close()
         analytics.close()
 
 
