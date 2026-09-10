@@ -108,8 +108,13 @@ def read_editable(path: str | Path) -> dict:
             hint_key: _secret_hint(d.get(secret_key)),
         }
 
+    cy = raw.get("Cycle", {}) or {}
     return {
         "accounts": out,
+        "cycle": {
+            "enabled": bool(cy.get("enabled")),
+            "interval_minutes": int(cy.get("interval_minutes", 15) or 15),
+        },
         "telegram": {
             **_notify_block(tg, "bot_token", "token_hint", "has_token"),
             "chat_id": str(tg.get("chat_id", "")),
@@ -165,6 +170,20 @@ def apply_action(path: str | Path, action: dict) -> dict:
             ]
             if len(raw["Accounts"]) == before:
                 raise ConfigEditError(f"Unknown account: {alias!r}")
+            _atomic_write(path, raw)
+            return read_editable(path)
+
+        if kind == "set_cycle":
+            cy = raw.setdefault("Cycle", {})
+            cy["enabled"] = bool(action.get("enabled"))
+            if "interval_minutes" in action:
+                try:
+                    m = int(action.get("interval_minutes"))
+                except (TypeError, ValueError):
+                    raise ConfigEditError("interval must be a number of minutes.") from None
+                if not 5 <= m <= 120:
+                    raise ConfigEditError("interval must be between 5 and 120 minutes.")
+                cy["interval_minutes"] = m
             _atomic_write(path, raw)
             return read_editable(path)
 

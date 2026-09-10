@@ -30,6 +30,11 @@
     "url": "socks5://user:password@host:port"
   },
 
+  "Cycle": {
+    "enabled": false,
+    "interval_minutes": 15
+  },
+
   "Accounts": [
     {
       "alias": "Main Account",

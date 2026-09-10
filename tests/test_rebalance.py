@@ -1,6 +1,6 @@
 import time
 
-from kickminer.account_worker import eligible_online, select_active
+from kickminer.account_worker import cycle_window, eligible_online, select_active
 from kickminer.entities import AccountState, StreamerState
 
 
@@ -74,3 +74,22 @@ def test_account_snapshot_shape():
     assert snap["active_streamers"] == ["s0"]
     assert snap["total_points"] == 500
     assert snap["streamers"]["s0"]["points_gained"] == 50
+
+
+
+
+def test_cycle_window_groups_and_rotation():
+    order = ["s0", "s1", "s2", "s3", "s4"]
+    assert cycle_window(order, 2, 0, 900) == (0, 3, ["s0", "s1"], 900)
+    assert cycle_window(order, 2, 950, 900)[:3] == (1, 3, ["s2", "s3"])
+    assert cycle_window(order, 2, 1900, 900)[:3] == (2, 3, ["s4"])
+    assert cycle_window(order, 2, 2800, 900)[:3] == (0, 3, ["s0", "s1"])  # wrapped
+
+
+def test_cycle_window_next_switch_countdown():
+    _, _, _, nxt = cycle_window(["a", "b", "c"], 1, 300, 900)
+    assert nxt == 600  # 300s into a 900s window
+
+
+def test_cycle_window_single_group():
+    assert cycle_window(["a", "b"], 2, 5000, 900) == (0, 1, ["a", "b"], 400)

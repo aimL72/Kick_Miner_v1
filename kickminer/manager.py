@@ -33,6 +33,8 @@ class AccountManager:
                 reconnect_cooldown=config.reconnect_cooldown,
                 stagger_min=config.stagger_min,
                 stagger_max=config.stagger_max,
+                cycle_enabled=config.cycle_enabled,
+                cycle_interval_minutes=config.cycle_interval_minutes,
                 on_points_gain=on_points_gain,
                 on_status_change=on_status_change,
                 analytics=analytics,

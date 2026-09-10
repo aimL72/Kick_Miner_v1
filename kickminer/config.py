@@ -68,6 +68,8 @@ class Config:
     reconnect_cooldown: int = 600
     stagger_min: float = 3.0
     stagger_max: float = 8.0
+    cycle_enabled: bool = False
+    cycle_interval_minutes: int = 15
     global_proxy: str | None = None
     accounts: list[AccountConfig] = field(default_factory=list)
     web: WebConfig = field(default_factory=WebConfig)
@@ -241,6 +243,10 @@ def load_config(path: str | Path = "config.json") -> Config:
         reconnect_cooldown=int(_num("Reconnect_cooldown", 600)),
         stagger_min=_num("Connection_stagger_min", 3.0),
         stagger_max=_num("Connection_stagger_max", 8.0),
+        cycle_enabled=_as_bool((raw.get("Cycle", {}) or {}).get("enabled")),
+        cycle_interval_minutes=max(
+            1, int((raw.get("Cycle", {}) or {}).get("interval_minutes", 15) or 15)
+        ),
         global_proxy=global_proxy,
         accounts=accounts,
         web=WebConfig(

@@ -77,6 +77,7 @@ class AccountState:
     token_valid: bool | None = None       # None = not checked yet
     token_username: str | None = None
     token_checked_at: datetime | None = None
+    cycle: dict = field(default_factory=lambda: {"enabled": False})
 
     @property
     def watching(self) -> list[str]:
@@ -105,6 +106,7 @@ class AccountState:
             "token_checked_at": (
                 self.token_checked_at.isoformat() if self.token_checked_at else None
             ),
+            "cycle": self.cycle,
             "streamers": {
                 name: st.snapshot() for name, st in self.streamers.items()
             },

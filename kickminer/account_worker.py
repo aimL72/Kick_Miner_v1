@@ -40,6 +40,23 @@ def select_active(order: list[str], online: set[str], max_concurrent: int) -> li
     return eligible[: max(0, max_concurrent)]
 
 
+def cycle_window(
+    order: list[str], max_concurrent: int, elapsed: float, period: float
+) -> tuple[int, int, list[str], float]:
+    """Rotation mode: split ``order`` into consecutive groups of
+    ``max_concurrent`` and advance one group every ``period`` seconds.
+
+    Returns ``(group_index, group_count, names_in_window, seconds_to_next_switch)``.
+    """
+
+    n = max(1, max_concurrent)
+    groups = [order[i : i + n] for i in range(0, len(order), n)] or [[]]
+    count = len(groups)
+    idx = int(elapsed // period) % count if period > 0 else 0
+    next_switch = period - (elapsed % period) if period > 0 else 0.0
+    return idx, count, list(groups[idx]), next_switch
+
+
 def eligible_online(
     order: list[str], streamers: dict, watching: set[str], now: float
 ) -> set[str]:
@@ -69,6 +86,8 @@ class AccountWorker:
         reconnect_cooldown: float = 600.0,
         stagger_min: float = 3.0,
         stagger_max: float = 8.0,
+        cycle_enabled: bool = False,
+        cycle_interval_minutes: float = 15.0,
         on_points_gain=None,
         on_status_change=None,
         analytics=None,
@@ -80,6 +99,9 @@ class AccountWorker:
         self.reconnect_cooldown = max(0.0, reconnect_cooldown)
         self.stagger_min = stagger_min
         self.stagger_max = stagger_max
+        self.cycle_enabled = cycle_enabled
+        self.cycle_seconds = max(300.0, cycle_interval_minutes * 60.0)
+        self._cycle_epoch = time.monotonic()
         self._on_points_gain = on_points_gain
         self._on_status_change = on_status_change
         self._analytics = analytics
@@ -121,11 +143,19 @@ class AccountWorker:
             await self._check_all_online()
             await self._rebalance()
             while self._running:
-                await asyncio.sleep(
-                    random.uniform(
-                        self.check_interval * 0.8, self.check_interval * 1.2
-                    )
+                sleep_for = random.uniform(
+                    self.check_interval * 0.8, self.check_interval * 1.2
                 )
+                if self.cycle_enabled:
+                    # wake near a rotation boundary so the switch isn't late
+                    _, _, _, nxt = cycle_window(
+                        self.state.order,
+                        self.cfg.max_concurrent,
+                        time.monotonic() - self._cycle_epoch,
+                        self.cycle_seconds,
+                    )
+                    sleep_for = min(sleep_for, max(5.0, nxt + 1.0))
+                await asyncio.sleep(sleep_for)
                 self._token_check_counter += 1
                 if self._token_check_counter >= 5:  # ~ every 5 online sweeps
                     self._token_check_counter = 0
@@ -179,22 +209,48 @@ class AccountWorker:
 
             await asyncio.sleep(random.uniform(*_ONLINE_CHECK_GAP))
 
+    def _refresh_cycle(self) -> set[str] | None:
+        """Update cycle state on the account snapshot; return the current
+        window's streamer names (or None when rotation is off / not applicable)."""
+
+        n = self.cfg.max_concurrent
+        if not self.cycle_enabled or len(self.state.order) <= n:
+            self.state.cycle = {"enabled": self.cycle_enabled}
+            return None
+        idx, count, window, nxt = cycle_window(
+            self.state.order, n, time.monotonic() - self._cycle_epoch, self.cycle_seconds
+        )
+        self.state.cycle = {
+            "enabled": True,
+            "group": idx,
+            "groups": count,
+            "window": window,
+            "next_switch_seconds": int(nxt),
+            "interval_minutes": round(self.cycle_seconds / 60, 1),
+        }
+        return set(window)
+
     async def _rebalance(self) -> None:
         async with self._rebalance_lock:
             current = set(self._ws)
             online = eligible_online(
                 self.state.order, self.state.streamers, current, time.monotonic()
             )
+            window = self._refresh_cycle()
+            if window is not None:
+                online &= window
+
             desired = set(
                 select_active(self.state.order, online, self.cfg.max_concurrent)
             )
 
             for name in current - desired:
-                reason = (
-                    t("streamer_went_offline")
-                    if not self.state.streamers[name].is_online
-                    else t("streamer_displaced")
-                )
+                if not self.state.streamers[name].is_online:
+                    reason = t("streamer_went_offline")
+                elif window is not None and name not in window:
+                    reason = "cycle switch"
+                else:
+                    reason = t("streamer_displaced")
                 await self._stop_watching(name, reason=reason)
                 if reason == t("streamer_displaced"):
                     self._emit_status(name, "displaced")

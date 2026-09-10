@@ -212,3 +212,20 @@ def test_set_discord(tmp_path):
     assert dc["min_points_gain"] == 3 and dc["notify_startup"] is False
     with pytest.raises(ConfigEditError):
         apply_action(p, {"action": "set_discord", "enabled": True, "webhook_url": "http://evil.com/x"})
+
+
+def test_read_editable_cycle_defaults(tmp_path):
+    p = _base_cfg(tmp_path)
+    assert read_editable(p)["cycle"] == {"enabled": False, "interval_minutes": 15}
+
+
+def test_set_cycle(tmp_path):
+    p = _base_cfg(tmp_path)
+    apply_action(p, {"action": "set_cycle", "enabled": True, "interval_minutes": 12})
+    cy = json.loads(p.read_text())["Cycle"]
+    assert cy == {"enabled": True, "interval_minutes": 12}
+    assert read_editable(p)["cycle"]["enabled"] is True
+    with pytest.raises(ConfigEditError):
+        apply_action(p, {"action": "set_cycle", "enabled": True, "interval_minutes": 2})
+    with pytest.raises(ConfigEditError):
+        apply_action(p, {"action": "set_cycle", "enabled": True, "interval_minutes": 999})

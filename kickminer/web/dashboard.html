@@ -96,6 +96,7 @@
   .card .g{font-size:11px;color:var(--fg2)}
   .card .st{font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
   .card.watching .st{color:var(--green)} .card.online .st{color:var(--orange)}
+  .card.dimmed{opacity:.45}
 
   /* config tab */
   .cfgnote{color:var(--orange);font-size:12px;margin-bottom:14px;display:flex;gap:6px;align-items:center}
@@ -303,18 +304,27 @@ function renderData(d){
   for(const a of d.accounts||[]){
     const wrap=el('div','acc');
     const up=a.uptime_seconds||0, h=Math.floor(up/3600), m=Math.floor(up%3600/60);
+    const cyc=a.cycle||{};
+    let cycMeta='';
+    if(cyc.enabled && cyc.groups){
+      const ns=cyc.next_switch_seconds||0;
+      cycMeta=` · <span style="color:var(--accent)">cycle ${cyc.group+1}/${cyc.groups}, switch in ${Math.floor(ns/60)}m${ns%60}s</span>`;
+    }
     wrap.appendChild(el('h3',null,
       `<span class="alias">${a.alias}</span>`+
-      `<span class="meta">${a.proxy?'proxy':'direct'} · ${a.active_count}/${a.max_concurrent} · up ${h}h ${m}m · ${fmt(a.total_points)} pts</span>`));
+      `<span class="meta">${a.proxy?'proxy':'direct'} · ${a.active_count}/${a.max_concurrent} · up ${h}h ${m}m · ${fmt(a.total_points)} pts${cycMeta}</span>`));
+    const win = (cyc.enabled && cyc.window) ? new Set(cyc.window) : null;
     const g=el('div','cards');
     (a.streamer_order||Object.keys(a.streamers||{})).forEach(n=>{
       const s=(a.streamers||{})[n]||{};
       let cls='card',st='offline';
       if(s.watching){cls+=' watching';st='watching';}
       else if(s.online){cls+=' online';st='queued';}
+      if(win && !win.has(n)){ cls+=' dimmed'; }
       const c=el('div',cls);
       c.appendChild(el('div','t',
-        `<span class="dot"></span><span class="nm"><a href="https://kick.com/${n}" target="_blank" rel="noopener">${n}</a></span><span class="pr">#${s.priority??'?'}</span>`));
+        `<span class="dot"></span><span class="nm"><a href="https://kick.com/${n}" target="_blank" rel="noopener">${n}</a></span><span class="pr">#${s.priority??'?'}</span>`+
+        (win&&win.has(n)?'<span class="pr" style="background:var(--accent-dim);color:var(--accent)">now</span>':'')));
       c.appendChild(el('div','b',
         `<span class="pts">${fmt(s.points)} <span class="g">(+${fmt(s.points_gained)})</span></span><span class="st">${st}</span>`));
       g.appendChild(c);
@@ -419,6 +429,25 @@ function renderConfig(){
   const body=$('#cfgbody'); body.innerHTML='';
   if(!CFG||!CFG.accounts){body.textContent='No editable accounts.';return;}
   const many=CFG.accounts.length>1;
+
+  // ---- watch mode ----
+  const cy=CFG.cycle||{enabled:false,interval_minutes:15};
+  const wm=el('div','cfgacc');
+  wm.appendChild(el('div','head','<span class="alias">Watch mode</span>'));
+  const modeSel=el('select');
+  [['order','Priority — top live streamers, kept until they go offline'],
+   ['cycle','Cycle — rotate through the list in groups every N minutes']]
+   .forEach(([v,l])=>{ const o=el('option'); o.value=v; o.textContent=l; modeSel.appendChild(o); });
+  modeSel.value = cy.enabled ? 'cycle' : 'order';
+  const iv=el('input'); iv.type='number'; iv.min=5; iv.max=120; iv.value=cy.interval_minutes;
+  const ivWrap=el('label','limit','switch every '); ivWrap.appendChild(iv); ivWrap.appendChild(document.createTextNode(' min'));
+  ivWrap.style.display = cy.enabled ? 'flex' : 'none';
+  modeSel.onchange=()=>{ ivWrap.style.display = modeSel.value==='cycle' ? 'flex' : 'none'; };
+  const wmSave=el('button','btn','Save mode'); wmSave.type='button';
+  wmSave.onclick=()=>cfgAction({action:'set_cycle', enabled:modeSel.value==='cycle', interval_minutes:+iv.value});
+  const wmRow=el('div','tokrow'); wmRow.appendChild(modeSel); wmRow.appendChild(ivWrap); wmRow.appendChild(wmSave);
+  wm.appendChild(wmRow);
+  body.appendChild(wm);
 
   CFG.accounts.forEach(acc=>{
     const w=el('div','cfgacc');
