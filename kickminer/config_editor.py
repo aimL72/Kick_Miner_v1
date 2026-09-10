@@ -15,7 +15,10 @@ import tempfile
 import threading
 from pathlib import Path
 
-STREAMER_RE = re.compile(r"^[a-z0-9_]{1,25}$")
+# Kick channel slug: letters/digits plus _ . - (some channels use hyphens or
+# dots). Starts and ends alphanumeric; up to ~40 chars. Path separators and
+# ".." stay blocked because the slug is interpolated into API URLs.
+STREAMER_RE = re.compile(r"^[a-z0-9]([a-z0-9._-]{0,38}[a-z0-9])?$")
 TOKEN_RE = re.compile(r"^\d+\|[A-Za-z0-9]{16,}$")
 _LOCK = threading.Lock()
 
@@ -26,8 +29,11 @@ class ConfigEditError(Exception):
 
 def _clean_name(raw: str) -> str:
     name = str(raw or "").strip().lower().lstrip("@")
-    if not STREAMER_RE.match(name):
-        raise ConfigEditError(f"Invalid Kick channel name: {raw!r}")
+    if ".." in name or "/" in name or "\\" in name or not STREAMER_RE.match(name):
+        raise ConfigEditError(
+            f"'{raw}' is not a valid Kick channel name. Use the name from the "
+            "channel URL (kick.com/<name>) - letters, digits, _ . -"
+        )
     return name
 
 

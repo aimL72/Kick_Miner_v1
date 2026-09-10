@@ -75,8 +75,17 @@ def test_add_rejects_duplicate_and_bad_name(tmp_path):
     p = _cfg(tmp_path)
     with pytest.raises(ConfigEditError):
         apply_action(p, {"action": "add", "account": "Main", "streamer": "a"})
-    with pytest.raises(ConfigEditError):
-        apply_action(p, {"action": "add", "account": "Main", "streamer": "bad name!"})
+    for bad in ("bad name!", "foo/bar", "../etc", "x" * 42, "-lead", "trail-", "a..b"):
+        with pytest.raises(ConfigEditError):
+            apply_action(p, {"action": "add", "account": "Main", "streamer": bad})
+
+
+def test_add_accepts_hyphen_dot_and_longer_names(tmp_path):
+    p = _cfg(tmp_path)
+    for good in ("los-ratones", "some.channel", "a_very_long_channel_name_1234567890"):
+        apply_action(p, {"action": "add", "account": "Main", "streamer": good})
+    got = read_editable(p)["accounts"][0]["streamers"]
+    assert "los-ratones" in got and "some.channel" in got
 
 
 def test_reorder(tmp_path):

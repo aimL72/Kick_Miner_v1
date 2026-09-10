@@ -177,8 +177,8 @@
   <section id="tab-config" hidden>
     <div class="box">
       <div class="cfgnote">⚠ Saving a change restarts the miner (a few seconds of downtime).</div>
+      <div id="cfgmsg" hidden></div>
       <div id="cfgbody"></div>
-      <div class="err" id="cfgerr"></div>
     </div>
   </section>
 
@@ -341,16 +341,24 @@ async function loadConfig(){
   try{ CFG=await (await fetch('/api/config')).json(); }catch(e){return;}
   renderConfig();
 }
-function cfgErr(m){$('#cfgerr').textContent=m||'';}
+function cfgMsg(text, kind){
+  const m=$('#cfgmsg');
+  if(!text){ m.hidden=true; return; }
+  m.hidden=false; m.textContent=text;
+  m.style.cssText='margin-bottom:14px;padding:9px 12px;border-radius:8px;font-size:13px;font-weight:600;'+
+    (kind==='err'
+      ? 'background:rgba(240,71,71,.15);color:var(--red);border:1px solid rgba(240,71,71,.4)'
+      : 'background:var(--green-dim);color:var(--green);border:1px solid rgba(83,252,24,.35)');
+}
 async function cfgAction(body){
-  if(BUSY)return; BUSY=true; cfgErr('');
+  if(BUSY)return; BUSY=true; cfgMsg('');
   document.querySelectorAll('#cfgbody button,#cfgbody input').forEach(x=>x.disabled=true);
   try{
     const r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const j=await r.json();
-    if(!r.ok){ cfgErr(j.error||'Edit rejected.'); }
-    else{ CFG=j.config; if(j.restarting) cfgErr('Saved — miner restarting…'); }
-  }catch(e){ cfgErr('Request failed.'); }
+    if(!r.ok){ cfgMsg(j.error||'Edit rejected.','err'); }
+    else{ CFG=j.config; cfgMsg(j.restarting?'Saved — miner restarting…':'Saved.','ok'); }
+  }catch(e){ cfgMsg('Request failed — is the miner up?','err'); }
   BUSY=false; renderConfig();
 }
 function renderConfig(){
@@ -388,7 +396,7 @@ function renderConfig(){
     w.appendChild(trow);
 
     const f=el('form','addf');
-    const ai=el('input'); ai.placeholder='add kick channel…'; ai.maxLength=25; ai.autocomplete='off';
+    const ai=el('input'); ai.placeholder='add kick channel (name from kick.com/…)'; ai.maxLength=40; ai.autocomplete='off';
     const ab=el('button','btn','Add'); ab.type='submit';
     f.appendChild(ai); f.appendChild(ab);
     f.onsubmit=e=>{e.preventDefault(); const v=ai.value.trim(); if(v) cfgAction({action:'add',account:acc.alias,streamer:v});};
